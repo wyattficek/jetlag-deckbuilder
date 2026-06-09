@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Jet Lag: Hide & Seek Expanded Deckbuilder</title>
+    <title>Jet Lag Deckbuilder Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -100,8 +100,8 @@
     <div class="max-w-7xl mx-auto">
         <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Jet Lag Deckbuilder</h1>
-                <p class="text-sm md:text-base text-gray-500 font-medium italic">Expanded Season Edition</p>
+                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Jet Lag: The Game Hide + Seek</h1>
+                <p class="text-sm md:text-base text-gray-500 font-medium italic">Deckbuilder Tool</p>
             </div>
             <div class="flex gap-2">
                 <button onclick="saveDeck()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition text-sm">Save Deck</button>
@@ -120,7 +120,7 @@
                 <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-6 shadow-sm">
                     <div class="flex items-center justify-between cursor-pointer lg:cursor-default" onclick="toggleMobileDeck()">
                         <h2 class="text-lg md:text-xl font-black uppercase flex items-center gap-2">
-                            Your List 
+                            Your Deck
                             <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span>
                         </h2>
                         <!-- Mobile Toggle Icon -->
@@ -140,11 +140,13 @@
                 </div>
 
                 <!-- Info Box (Hidden on small mobile to save vertical space) -->
-                <div class="hidden sm:block bg-blue-50 border border-blue-100 p-5 rounded-2xl text-blue-900 shadow-sm">
-                    <h3 class="font-black text-xs uppercase mb-2 border-b border-blue-200 pb-1">Game Info</h3>
-                    <div class="space-y-3 text-[11px] leading-relaxed">
-                        <p><strong>Scaling:</strong> S=Small, M=Medium, L=Large.</p>
-                        <p><strong>Costs:</strong> Satisfy casting costs to play Curses.</p>
+                <div class="bg-blue-50 border border-blue-100 p-5 rounded-2xl text-blue-900">
+                    <h3 class="font-black text-sm uppercase mb-3 border-b border-blue-200 pb-1">Deckbuilding Info</h3>
+                    <div class="space-y-4 text-xs leading-relaxed">
+                        <div>
+                            <p class="font-bold mb-1">Deck Standards</p>
+                            <p>The standard deck contains 55 time bonuses, 24 curses, and 21 power-ups for a total of 100 cards. This doesn't need to be followed for custom decks, but can be helpful to know for game balancing.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -250,17 +252,17 @@
             { name: "Time Bonus 36m", type: "Time Bonus", val: 36 },
             { name: "Time Bonus 5%", type: "Time Bonus", val: "5%" },
             { name: "Time Bonus 10%", type: "Time Bonus", val: "10%" },
-            { name: "Randomize", type: "Power-up", description: "Play instead of answering a question. A new unasked question from the same category is chosen, at random." },
+            { name: "Randomize", type: "Power-up", description: "Play instead of answering a question. A new unasked question from the same category is chosen, at random, which you answer instead." },
             { name: "Veto", type: "Power-up", description: "Play instead of answering a question. No answer is given, and no reward is earned." },
-            { name: "Duplicate Another Card", type: "Power-up", description: "Play this card as a copy of any other card in your hand." },
-            { name: "Move", type: "Power-up", description: "Establish a new hiding zone while seekers are frozen." },
-            { name: "Discard 1 Draw 2", type: "Power-up", description: "Standard hand management." },
-            { name: "Discard 2 Draw 3", type: "Power-up", description: "Enhanced hand management." },
-            { name: "Discard 3 Draw 4", type: "Power-up", description: "Maximum hand management." },
-            { name: "Draw 1 Expand 1", type: "Power-up", description: "Increase hand size limit for the round." },
-            { name: "Discard Me", type: "Power-up", description: "Discard this card to pay for a discard-based casting cost." },
-            { name: "Nothing", type: "Power-up", description: "This card does nothing. Cannot be used as casting cost." },
-            { name: "Time Trap", type: "Power-up", description: "Trap a station; value grows until seekers pass through." }
+            { name: "Duplicate Another Card", type: "Power-up", description: "Play this card as a copy of any other card in your hand. This may be used to duplicate a time bonus at the end of your round." },
+            { name: "Move", type: "Power-up", description: "Discard your hand and send the hiders the location of your transit station. This card grants a [S 10, M 20, L 60] minute period to establish a new hiding zone somewhere else on the game map. The seekers are frozen and your hiding timer is paused until this new hiding period has concluded. This card cannot be played during the endgame." },
+            { name: "Discard 1 Draw 2", type: "Power-up", description: "Discard one other card from your hand. Then, draw and keep two cards from the hider deck." },
+            { name: "Discard 2 Draw 3", type: "Power-up", description: "Discard two other cards from your hand. Then, draw and keep three cards from the hider deck." },
+            { name: "Discard 3 Draw 4", type: "Power-up", description: "Discard three other cards from your hand. Then, draw and keep four cards from the hider deck." },
+            { name: "Draw 1 Expand 1", type: "Power-up", description: "Draw one card from the hider deck. For the rest of the round, you can hold one additional card in your hand." },
+            { name: "Discard Me", type: "Power-up", description: "You can choose to discard this card to pay for the entirety of a curse's casting cost, so long as that card's casting cost involves discarding cards." },
+            { name: "Nothing", type: "Power-up", description: "This card does nothing. It cannot be played or used to pay for another card's cating cost." },
+            { name: "Time Trap", type: "Power-up", description: "Place this card on any transit station and inform the seekers of its location. Every [S 15, M 30, L 60] minutes, increase this card's value by [S 4, M 6, L 10] minutes. If the seekers ever visit or pass through the trapped station, remove this card and add its value to your hiding time." }
         ];
 
         const powerIcons = {
@@ -270,6 +272,7 @@
             "Move": '<path d="M50 20 L80 80 L50 65 L20 80 Z" class="power-symbol-stroke"/>',
             "Discard Me": '<path d="M30 30 L70 70 M70 30 L30 70" class="power-symbol-stroke"/><rect x="25" y="25" width="50" height="50" class="power-symbol-stroke"/>',
             "Time Trap": '<circle cx="50" cy="50" r="30" class="power-symbol-stroke"/><path d="M50 35 V50 H65" class="power-symbol-stroke"/>',
+	    "Nothing": '<line x1="0" y1="0" x2="0" y2="0" class="power-symbol-stroke"/><line x1="0" y1="0" x2="0" y2="0" class="power-symbol-stroke"/>',
             "default": '<line x1="30" y1="50" x2="70" y2="50" class="power-symbol-stroke"/><line x1="50" y1="30" x2="50" y2="70" class="power-symbol-stroke"/>'
         };
 
@@ -362,7 +365,7 @@
                     <div class="text-[10px] font-black uppercase text-gray-400 mb-0.5 tracking-widest">Curse</div>
                     <div class="text-[16px] font-black leading-tight mb-1.5 uppercase text-gray-900">${card.name}</div>
                     <div class="leading-relaxed text-gray-600 font-medium flex-grow mb-1 ${fs}">${card.description}</div>
-                    <div class="mt-auto pt-1.5 border-t text-[10px] font-bold text-gray-800 uppercase italic">Cost: ${card.cost}</div>
+                    <div class="mt-auto pt-1.5 border-t text-[10px] font-bold text-gray-800">Cost: ${card.cost}</div>
                 `;
             } else if (card.type === 'Power-up') {
                 let titleHtml = "";
