@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jet Lag: Hide + Seek Deckbuilder Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Jet Lag: Hide & Seek Expanded Deckbuilder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow-x: hidden; }
         
         .card-base {
             width: 230px;
@@ -22,45 +22,45 @@
             user-select: none;
             transition: transform 0.2s ease;
             overflow: hidden;
+            background-clip: padding-box;
         }
-        .card-base:hover { transform: translateY(-4px); }
+        
+        /* Disable hover transform on mobile to prevent weird jumpy behavior */
+        @media (min-width: 1024px) {
+            .card-base:hover { transform: translateY(-4px); }
+        }
 
-        /* Card Borders & Theme */
         .card-curse { border: 1px solid #e5e7eb; border-top: 12px solid #8e7cc3; }
         .card-time-bonus { border: 1.5px solid #3b82f6; }
         .card-power-up { border: 6px solid #d32f2f; background-color: #ffffff; }
 
         .card-content { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Layout for Centered Cards */
         .card-power-up .card-content, .card-time-bonus .card-content {
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+            justify-content: center; align-items: center; text-align: center;
         }
 
+        /* Overlay - Works with hover on PC and tap on Mobile */
         .card-overlay {
             position: absolute;
             inset: 0;
-            background-color: transparent;
+            background-color: rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: opacity 0.2s;
-            z-index: 20;
+            z-index: 10;
             border-radius: inherit;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
         }
-        .card-base:hover .card-overlay { opacity: 1; }
+        .card-base:hover .card-overlay, .card-base:active .card-overlay { opacity: 1; }
 
-        /* Power-up Icons */
+        /* Icon Graphics */
         .power-icon-container { width: 85px; height: 85px; margin-bottom: 12px; flex-shrink: 0; }
         .power-hex-stroke { fill: none; stroke: #d32f2f; stroke-width: 6; }
         .power-symbol-stroke { fill: none; stroke: #d32f2f; stroke-width: 5; stroke-linecap: round; }
-
-        /* Hexagonal Clock Icon */
         .time-icon-large { width: 100px; height: 100px; margin-bottom: 10px; flex-shrink: 0; }
 
         .time-box { display: flex; gap: 4px; margin-top: auto; width: 100%; }
@@ -71,65 +71,97 @@
             margin-bottom: 8px; padding: 10px; border-radius: 8px;
             display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
-        .tab-btn.active { background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #111827; }
+
         .view-toggle-btn.active { background-color: #3b82f6; color: white; }
+
+        /* Z-Index Fixes for Mobile Scrolling */
+        #library-controls {
+            position: sticky;
+            top: 0;
+            background-color: #f3f4f6;
+            z-index: 40;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        /* Mobile specific list hiding */
+        #deck-container-inner.hidden-mobile {
+            display: none;
+        }
+        @media (min-width: 1024px) {
+            #deck-container-inner.hidden-mobile {
+                display: block !important;
+            }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight uppercase">Jet Lag: The Game Hide + Seek</h1>
-                <p class="text-gray-500 font-medium italic">Deckbuilder Tool</p>
+                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Jet Lag Deckbuilder</h1>
+                <p class="text-sm md:text-base text-gray-500 font-medium italic">Expanded Season Edition</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="saveDeck()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition">Save Deck</button>
-                <button onclick="clearDeck()" class="bg-white text-gray-700 border border-gray-200 px-5 py-2 rounded-lg font-bold hover:bg-gray-50 transition text-sm">Clear</button>
+                <button onclick="saveDeck()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition text-sm">Save Deck</button>
+                <button onclick="clearDeck()" class="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-lg font-bold hover:bg-gray-50 transition text-sm">Clear</button>
             </div>
         </header>
 
-        <div class="flex bg-gray-200 p-1 rounded-xl w-fit mb-8 shadow-inner">
-            <button onclick="setView('library')" id="view-library" class="view-toggle-btn active px-6 py-2 rounded-lg font-bold text-sm transition">Card Library</button>
-            <button onclick="setView('deck')" id="view-deck" class="view-toggle-btn px-6 py-2 rounded-lg font-bold text-sm transition text-gray-600">Visual Deck</button>
-        </div>
+        <nav class="flex bg-gray-200 p-1 rounded-xl w-full md:w-fit mb-8 shadow-inner relative z-50">
+            <button onclick="setView('library')" id="view-library" class="view-toggle-btn active flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-sm transition">Card Library</button>
+            <button onclick="setView('deck')" id="view-deck" class="view-toggle-btn flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-sm transition text-gray-600">Visual Deck</button>
+        </nav>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1 h-fit sticky top-8">
-                <!-- Sidebar Top: List & Stats -->
-                <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-6">
-                    <h2 class="text-xl font-black mb-4 flex items-center justify-between uppercase">Deck <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span></h2>
-                    <div id="deck-list" class="min-h-[50px] max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
-                    <div class="border-t border-gray-200 pt-4 space-y-3">
-                        <div class="flex justify-between text-sm font-bold text-gray-600"><span>Curses</span> <span id="stat-curse" class="text-gray-900 font-black">0</span></div>
-                        <div class="flex justify-between text-sm font-bold text-gray-600"><span>Power-ups</span> <span id="stat-power" class="text-gray-900 font-black">0</span></div>
-                        <div class="flex justify-between text-sm font-bold text-gray-600"><span>Time Bonus</span> <span id="stat-time" class="text-gray-900 font-black">0</span></div>
+            <!-- Sidebar: List & Stats -->
+            <div class="lg:col-span-1 lg:h-fit lg:sticky lg:top-8 z-30">
+                <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-6 shadow-sm">
+                    <div class="flex items-center justify-between cursor-pointer lg:cursor-default" onclick="toggleMobileDeck()">
+                        <h2 class="text-lg md:text-xl font-black uppercase flex items-center gap-2">
+                            Your List 
+                            <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span>
+                        </h2>
+                        <!-- Mobile Toggle Icon -->
+                        <div class="lg:hidden text-gray-400">
+                            <span id="mobile-list-arrow">▼</span>
+                        </div>
+                    </div>
+
+                    <div id="deck-container-inner" class="hidden-mobile mt-4">
+                        <div id="deck-list" class="min-h-[50px] max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
+                        <div class="border-t border-gray-200 pt-4 space-y-3">
+                            <div class="flex justify-between text-sm font-bold text-gray-600"><span>Curses</span> <span id="stat-curse" class="text-gray-900 font-black">0</span></div>
+                            <div class="flex justify-between text-sm font-bold text-gray-600"><span>Power-ups</span> <span id="stat-power" class="text-gray-900 font-black">0</span></div>
+                            <div class="flex justify-between text-sm font-bold text-gray-600"><span>Time Bonus</span> <span id="stat-time" class="text-gray-900 font-black">0</span></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Info Box -->
-                <div class="bg-blue-50 border border-blue-100 p-5 rounded-2xl text-blue-900">
-                    <h3 class="font-black text-sm uppercase mb-3 border-b border-blue-200 pb-1">Deckbuilding Info</h3>
-                    <div class="space-y-4 text-xs leading-relaxed">
-                        <div>
-                            <p class="font-bold mb-1">Deck Standards</p>
-                            <p>The standard deck contains 55 time bonuses, 24 curses, and 21 power-ups for a total of 100 cards. This doesn't need to be followed for custom decks, but can be helpful to know for game balancing.</p>
-                        </div>
+                <!-- Info Box (Hidden on small mobile to save vertical space) -->
+                <div class="hidden sm:block bg-blue-50 border border-blue-100 p-5 rounded-2xl text-blue-900 shadow-sm">
+                    <h3 class="font-black text-xs uppercase mb-2 border-b border-blue-200 pb-1">Game Info</h3>
+                    <div class="space-y-3 text-[11px] leading-relaxed">
+                        <p><strong>Scaling:</strong> S=Small, M=Medium, L=Large.</p>
+                        <p><strong>Costs:</strong> Satisfy casting costs to play Curses.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="lg:col-span-3">
-                <div id="library-controls" class="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div class="flex bg-gray-200 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
-                        <button onclick="filterType('All')" id="tab-All" class="tab-btn active px-4 py-2 rounded-lg font-bold text-sm transition whitespace-nowrap">All</button>
-                        <button onclick="filterType('Curse')" id="tab-Curse" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm transition text-gray-600 whitespace-nowrap">Curses</button>
-                        <button onclick="filterType('Power-up')" id="tab-Power-up" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm transition text-gray-600 whitespace-nowrap">Power-ups</button>
-                        <button onclick="filterType('Time Bonus')" id="tab-Time Bonus" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm transition text-gray-600 whitespace-nowrap">Time Bonus</button>
+            <!-- Content Area -->
+            <div class="lg:col-span-3 relative">
+                <div id="library-controls" class="flex flex-col gap-4 mb-4">
+                    <div class="flex bg-gray-200 p-1 rounded-xl w-full overflow-x-auto scrollbar-hide">
+                        <button onclick="filterType('All')" id="tab-All" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition whitespace-nowrap bg-white shadow-sm">All</button>
+                        <button onclick="filterType('Curse')" id="tab-Curse" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600 whitespace-nowrap">Curses</button>
+                        <button onclick="filterType('Power-up')" id="tab-Power-up" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600 whitespace-nowrap">Power-ups</button>
+                        <button onclick="filterType('Time Bonus')" id="tab-Time Bonus" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600 whitespace-nowrap">Time Bonus</button>
                     </div>
-                    <input type="text" id="search" oninput="renderContent()" placeholder="Search library..." class="border border-gray-200 rounded-xl px-4 py-2.5 w-full md:w-72 outline-none shadow-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="search" oninput="renderContent()" placeholder="Search cards..." class="border border-gray-200 rounded-xl px-4 py-3 w-full outline-none shadow-sm focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
-                <div id="main-content" class="flex flex-wrap gap-6 justify-center md:justify-start"></div>
+                
+                <div id="main-content" class="flex flex-wrap gap-4 md:gap-6 justify-center lg:justify-start pb-20"></div>
             </div>
         </div>
     </div>
@@ -165,7 +197,7 @@
             { name: "Curse Of The Express Route", type: "Curse", description: "Seekers cannot disembark any transit for the next [S 10, M 20, L 30] minutes, unless they've reached the end of a line.", cost: "Discard at least [S 10, M 20, L 30] minutes worth of time bonuses" },
             { name: "Curse Of The Archaeologist", type: "Curse", description: "Send the seekers a photo of a building or structure whose age you can verify to within a century. The seekers must find a building or structure (whose age they can also verify) from the same century or earlier before asking another question.", cost: "A standard photo of a building ot structure" },
             { name: "Curse Of The Void", type: "Curse", description: "For the next three questions that the seekers ask, roll a die. If you roll a 1, 2, 3, or 4, that question is automatically vetoed.", cost: "Discard a veto" },
-            { name: "Curse Of The Shrewd Critic", type: "Curse", description: "Without using the internet, the seekers must find and visit a location (going inside or immediately outside) that has at least a 4.3 star average rating on Google Maps before asking another question. If their guess was wrong, they must wait [S 2, M 5, L 10] minutes before guessing another location. They cannot be on transit when submitting guess.", cost: "Seekers must be currently off-transit within 500 feet of a location that has at least a 4.3 star average rating on Google Maps" },
+            { name: "Curse Of The Shrewd Critic", type: "Curse", description: "Without using the internet, the seekers must find and visit a location (going inside or immediately outside) that has at least a 4.3 star average rating on Google Maps before asking another question. If their guess was wrong, they must wait [S 2, M 5, L 10] minutes before guessing another location. They cannot be on transit when submitting guess.", cost: "Seekers must be currently off-transit within 500 feet of a location" },
             { name: "Curse Of The Pong Champion", type: "Curse", description: "Throw a die into a container (maximum 6 inches in diameter) from any distance you choose. You have three attempts. Seekers must throw a die into a container from the same horizontal distance before asking another question, but must wait [S 1, M 3, L 5] minutes between attempts.", cost: "Successfully land the die in three attempts" },
             { name: "Curse Of The Impenetrable Fog", type: "Curse", description: "For the next hour, any time the seekers reach a street intersection, the must assign each direction to a number on their die. They may assign a direction to multiple numbers, but each direction must be assigned to at least one. Then, they roll the die to see what direction to go.", cost: "Roll a die. If it's odd, this curse has no effect" },
             { name: "Curse Of The Gilded Inquiry", type: "Curse", description: "Secretly choose one question. If the seekers ask that question after this curse is played, the question is automatically vetoed and you instantly draw and keep three extra cards.", cost: "The seekers' next question is free" },
@@ -176,16 +208,16 @@
             { name: "Curse Of The Queue", type: "Curse", description: "Seekers may not ask another question until they've waited in line for at least five minutes. They may wait in different lines, but they cannot wait in the same line more than once. They may not let people cut in front of them in line, and lines must have at least two other people when they enter them.", cost: "You must currently be in line somewhere" },
             { name: "Curse Of The Plagued World", type: "Curse", description: "For the next [S 1, M 1, L 2] hours, asking a question creates a [S 0.25, M 1, L 5] mile radius where questions cannot be asked until this curse expires.", cost: "Seekers must be at least [S 1, M 3, L 25] miles from you" },
             { name: "Curse Of The Zipped Lip", type: "Curse", description: "Seekers can only communicate to one another through gestures and closed-mouth non-word sounds for the next [S 10, M 20, L 30] minutes. They can speak to other people, but cannot speak or write any message intended for another seeker.", cost: "Discard a power-up" },
-            { name: "Curse Of The Hide-and-Seek-ception", type: "Curse", description: "All seekers but one must close their eyes. Without discussion, the remaining seeker must go somewhere 1,000 feet away and not within direct eyeshot in any direction. The other seekers must find them, without asking them for any information, before asking another question.", cost: "The seekers must be off-transit, at least 1,000 feet from a transit station" },
+            { name: "Curse Of The Hide-and-Seek-ception", type: "Curse", description: "All seekers but one must close their eyes. Without discussion, the remaining seeker must go somewhere 1,000 feet away and not within direct eyeshot in any direction. The other seekers must find them, without asking them for any information, before asking another question.", cost: "The seekers must be off-transit" },
             { name: "Curse Of The Passenger Princess", type: "Curse", description: "The hider selects one seeker to be the passenger princess for the next [S 30, M 45, L 60] minutes. The other seeker is the driver. The passenger princess is not permitted to carry their own belongings, do any research, hold any map, or discuss the game in any way. They may be involved in clearing curses if instructed to do so.", cost: "Discard two cards" },
             { name: "Curse Of The Rewind", type: "Curse", description: "Seekers must ask their next question from the exact place they asked their last question.", cost: "The last question must have been asked during the end game" },
-            { name: "Curse Of The Tiny Home", type: "Curse", description: "All time bonus cards held at the end of this round are worth 50% extra.", cost: "The radius of your hiding zone is halved. This curse cannot be played during the endgame" },
-            { name: "Curse Of The Curious Explorer", type: "Curse", description: "Seekers must spend at least [S 10, M 20, L 30] minutes in a museum before asking another question. If there is an entry fee, they may wait in the lobby or directly outside.", cost: "Seekers must be off-transit within 0.5 miles of a museum that is open for at least another hour" },
-            { name: "Curse Of The Quill", type: "Curse", description: "Before asking another question, the seekers must spell out the name of the category they intend to use (e.g. PHOTO or MATCHING) by sending photos of handwritten letters they've found out in the world. The letters do not all need to be found in the same place, but they must be created by other people and not printed by any kind of machine. They cannot use a letter twice.", cost: "Seekers must be at least 500 feet from any transit station" },
+            { name: "Curse Of The Tiny Home", type: "Curse", description: "All time bonus cards held at the end of this round are worth 50% extra.", cost: "Radius halved. Not for endgame" },
+            { name: "Curse Of The Curious Explorer", type: "Curse", description: "Seekers must spend at least [S 10, M 20, L 30] minutes in a museum before asking another question. If there is an entry fee, they may wait in the lobby or directly outside.", cost: "Near an open museum" },
+            { name: "Curse Of The Quill", type: "Curse", description: "Before asking another question, the seekers must spell out the name of the category they intend to use (e.g. PHOTO or MATCHING) by sending photos of handwritten letters they've found out in the world. The letters do not all need to be found in the same place, but they must be created by other people and not printed by any kind of machine. They cannot use a letter twice.", cost: "Away from transit" },
             { name: "Curse Of The Clone", type: "Curse", description: "Find a stranger in public and note the following things about them: Do they have long sleeves ot short sleeves? Do they have long pants/skirt or short pants/skirt? Do they have glasses or no glasses? Do they have a hat or no hat? Do they have a bag or no bag? The seekers must find a stranger with the same qualities before asking another question.", cost: "Find a stranger" },
             { name: "Curse Of The Featherless Flight", type: "Curse", description: "Construct a paper airplane. You may practice throwing it, but you get one official attempt to measure how far it flies horizontally. The seekers must construct, throw, and retrieve an airplane from at least the same distance before asking another question.", cost: "Throw and retrieve a paper airplane." },
             { name: "Curse Of The Blind Wanderer", type: "Curse", description: "Seekers must ask their next question at least [S 1, M 3, L 10] miles from where they are right now.", cost: "Seekers must be at least [S 2, M 6, L 20] miles from you" },
-            { name: "Curse Of The Anonymous Benefactor", type: "Curse", description: "Seekers must place one dollar/euro/pound (or your country's equivalent) in a public space and confirm that it has been taken by a stranger before asking another question. Seekers cannot speak directly to any strangers about the money.", cost: "Donate money under the same circumstances" },
+            { name: "Curse Of The Anonymous Benefactor", type: "Curse", description: "Seekers must place one dollar/euro/pound (or your country's equivalent) in a public space and confirm that it has been taken by a stranger before asking another question. Seekers cannot speak directly to any strangers about the money.", cost: "Donate money under same circumstances" },
             { name: "Curse Of The Prophet", type: "Curse", description: "Rearrange the top ten cards of the deck in any order you choose.", cost: "Discard two cards" },
             { name: "Curse Of The Open Mind", type: "Curse", description: "You no longer have a hand size limit.", cost: "Discard your hand" },
             { name: "Curse Of The Seventh Seal", type: "Curse", description: "Your current hiding time, excluding bonuses, is doubled. All remaining time this run is not doubled.", cost: "Discard six curses" },
@@ -193,21 +225,21 @@
             { name: "Curse Of The Untethered Spirit", type: "Curse", description: "You may move freely within your hiding zone during this round's endgame.", cost: "The tracker is reversed" },
             { name: "Curse Of The Strider", type: "Curse", description: "Walk or run any total distance over the course of 30 minutes. The seekers must travel that same distance together, on foot before asking another question (e.g. the hider runs 3 miles, the seekers must each walk/run 3 miles.)", cost: "Travel a distance on foot" },
             { name: "Curse Of The Strongman", type: "Curse", description: "One hider completes as many push-ups as they can over the course of 15-minutes. They may use any standard of push-up (ie. using knees, chest touches ground, chest touches fist, etc.) The seekers must collectively do this many push-ups of the same standard before asking another question.", cost: "Do X push-ups" },
-            { name: "Curse Of The Empty Mind", type: "Curse", description: "Search through the deck and choose any three cards to add to your hand. You must play this curse immediately.", cost: "You cannot draw cards for the rest of the round" },
+            { name: "Curse Of The Empty Mind", type: "Curse", description: "Search through the deck and choose any three cards to add to your hand. You must play this curse immediately.", cost: "No card draw for round" },
             { name: "Curse Of The Pomologist", type: "Curse", description: "Send the seekers a photo of a fruit, along with a link to its corresponding Wikipedia page. They must find the same type of fruit before asking another question.", cost: "A photo of a fruit" },
             { name: "Curse Of The Divine Blessing", type: "Curse", description: "For the rest of the round, keep all cards drawn. Hand size limit still applies.", cost: "Discard 3 curses" },
             { name: "Curse Of The Chasm", type: "Curse", description: "For the next three questions that the seekers ask, they must roll a die. If they roll a 1, 2, 3, or 4, that question is automatically randomized.", cost: "Discard a randomize" },
-            { name: "Curse Of The Grass-Toucher", type: "Curse", description: "The next question that the seekers ask must be asked at least 250 feet from any named street (on Google Maps.) As always, no trespassing.", cost: "This curse must be cast at least 250 feet from any named street" },
-            { name: "Curse Of The Freewheeler", type: "Curse", description: "The next three questions that the seekers ask must be asked while on a moving form of transit.", cost: "Seekers must be at least [S 2, M 5, L 50] miles from you" },
-            { name: "Curse Of The Seabird", type: "Curse", description: "Seekers must photograph a bird within 10 feet of a body of water. If after [S 30, M 45, L 60] minutes, no bird has been photographed, this curse is automatically cleared.", cost: "Seekers must be off-transit within 0.5 miles of a natural body of water" },
-            { name: "Curse Of The Long Shot", type: "Curse", description: "Once this curse is cast, the seekers have five minutes to provide one guess as to what transit station you are centered at. If they are correct, you must tell them so. If they are incorrect, they are frozen for [S 18, M 27, L 45] minutes.", cost: "Seekers must be within [S 2, M 5, L 50] miles of you" },
+            { name: "Curse Of The Grass-Toucher", type: "Curse", description: "The next question that the seekers ask must be asked at least 250 feet from any named street (on Google Maps.) As always, no trespassing.", cost: "Cast far from named street" },
+            { name: "Curse Of The Freewheeler", type: "Curse", description: "The next three questions that the seekers ask must be asked while on a moving form of transit.", cost: "Seekers miles from you" },
+            { name: "Curse Of The Seabird", type: "Curse", description: "Seekers must photograph a bird within 10 feet of a body of water. If after [S 30, M 45, L 60] minutes, no bird has been photographed, this curse is automatically cleared.", cost: "Near body of water" },
+            { name: "Curse Of The Long Shot", type: "Curse", description: "Once this curse is cast, the seekers have five minutes to provide one guess as to what transit station you are centered at. If they are correct, you must tell them so. If they are incorrect, they are frozen for [S 18, M 27, L 45] minutes.", cost: "Distance from seekers" },
             { name: "Curse Of The Non-Dominant Hand", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, seekers may not sure their dominant hand for any game-related task. That includes using their phone, completing a challenge, or writing anything on a map.", cost: "Discard a card" },
-            { name: "Curse Of The Planespotter", type: "Curse", description: "The seekers must take a photo of an airplane and send it to the hider before asking another question.", cost: "Seekers must be within 10 miles of a commercial airport" },
+            { name: "Curse Of The Planespotter", type: "Curse", description: "The seekers must take a photo of an airplane and send it to the hider before asking another question.", cost: "Near commercial airport" },
             { name: "Curse Of The Oracle", type: "Curse", description: "Seekers must flip a coin and predict its outcome while its in the air. If they are correct, they do it again. If they are wrong, they must wait [S 1, M 3, L 5] minutes. They may not ask another question until they get it correct three times in a row.", cost: "Discard two cards" },
-            { name: "Curse Of The Post Office", type: "Curse", description: "Seekers must successfully mail a letter with their next question in it to your home address before asking another question.", cost: "Seekers must be within 0.5 miles of a post office." },
-            { name: "Curse Of The Landline", type: "Curse", description: "For the next two hours, seekers may only use their phone for game-related purposes while it is charging via a wall outlet.", cost: "Seekers must be at least [S 2, M 5, L 50] miles from you" },
+            { name: "Curse Of The Post Office", type: "Curse", description: "Seekers must successfully mail a letter with their next question in it to your home address before asking another question.", cost: "Near open post office" },
+            { name: "Curse Of The Landline", type: "Curse", description: "For the next two hours, seekers may only use their phone for game-related purposes while it is charging via a wall outlet.", cost: "Seekers miles from you" },
             { name: "Curse Of The Shark", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, the seekers are not allowed to stop walking for any reason.", cost: "Discard a power-up" },
-            { name: "Curse Of The Runner", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, the seekers are only allowed to run or be still. They may not walk.", cost: "Discard [S 4, M 6, L 10] minutes worth of time bonuses" },
+            { name: "Curse Of The Runner", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, the seekers are only allowed to run or be still. They may not walk.", cost: "Discard time bonuses" },
             { name: "Curse Of The Bargin Hunter", type: "Curse", description: "Send the seekers a picture of a discounted price tag (or other written discount) that you found in the real world. They must find an item that is equally (or more) discounted, by percentage, before asking another question.", cost: "A photo of a price tag" },
             { name: "Curse Of The Trickster", type: "Curse", description: "You may lie - or provide a false photo - for one of the next three questions that the seekers ask. As always, you must send a photo of this curse when cast.", cost: "Discard a curse" },
             { name: "Time Bonus 3m", type: "Time Bonus", val: 3 },
@@ -218,17 +250,17 @@
             { name: "Time Bonus 36m", type: "Time Bonus", val: 36 },
             { name: "Time Bonus 5%", type: "Time Bonus", val: "5%" },
             { name: "Time Bonus 10%", type: "Time Bonus", val: "10%" },
-            { name: "Randomize", type: "Power-up", description: "Play instead of answering a question. A new unasked question from the same category is chosen, at random, which you answer instead." },
+            { name: "Randomize", type: "Power-up", description: "Play instead of answering a question. A new unasked question from the same category is chosen, at random." },
             { name: "Veto", type: "Power-up", description: "Play instead of answering a question. No answer is given, and no reward is earned." },
-            { name: "Duplicate Another Card", type: "Power-up", description: "Play this card as a copy of any other card in your hand. This may be used to duplicate a time bonus at the end of your round." },
-            { name: "Move", type: "Power-up", description: "Discard your hand and send the hiders the location of your transit station. This card grants a [S 10, M 20, L 60] minute period to establish a new hiding zone somewhere else on the game map. The seekers are frozen and your hiding timer is paused until this new hiding period has concluded. This card cannot be played during the endgame." },
-            { name: "Discard 1 Draw 2", type: "Power-up", description: "Discard one other card from your hand. Then, draw and keep two cards from the hider deck." },
-            { name: "Discard 2 Draw 3", type: "Power-up", description: "Discard two other cards from your hand. Then, draw and keep three cards from the hider deck." },
-            { name: "Discard 3 Draw 4", type: "Power-up", description: "Discard three other cards from your hand. Then, draw and keep four cards from the hider deck." },
-            { name: "Draw 1 Expand 1", type: "Power-up", description: "Draw one card from the hider deck. For the rest of the round, you can hold one additional card in your hand." },
-            { name: "Discard Me", type: "Power-up", description: "You can choose to discard this card to pay for the entirety of a curse's casting cost, so long as that card's casting cost involves discarding cards." },
-            { name: "Nothing", type: "Power-up", description: "This card does nothing. It cannot be played or used to pay for another card's cating cost." },
-            { name: "Time Trap", type: "Power-up", description: "Place this card on any transit station and inform the seekers of its location. Every [S 15, M 30, L 60] minutes, increase this card's value by [S 4, M 6, L 10] minutes. If the seekers ever visit or pass through the trapped station, remove this card and add its value to your hiding time." }
+            { name: "Duplicate Another Card", type: "Power-up", description: "Play this card as a copy of any other card in your hand." },
+            { name: "Move", type: "Power-up", description: "Establish a new hiding zone while seekers are frozen." },
+            { name: "Discard 1 Draw 2", type: "Power-up", description: "Standard hand management." },
+            { name: "Discard 2 Draw 3", type: "Power-up", description: "Enhanced hand management." },
+            { name: "Discard 3 Draw 4", type: "Power-up", description: "Maximum hand management." },
+            { name: "Draw 1 Expand 1", type: "Power-up", description: "Increase hand size limit for the round." },
+            { name: "Discard Me", type: "Power-up", description: "Discard this card to pay for a discard-based casting cost." },
+            { name: "Nothing", type: "Power-up", description: "This card does nothing. Cannot be used as casting cost." },
+            { name: "Time Trap", type: "Power-up", description: "Trap a station; value grows until seekers pass through." }
         ];
 
         const powerIcons = {
@@ -238,7 +270,6 @@
             "Move": '<path d="M50 20 L80 80 L50 65 L20 80 Z" class="power-symbol-stroke"/>',
             "Discard Me": '<path d="M30 30 L70 70 M70 30 L30 70" class="power-symbol-stroke"/><rect x="25" y="25" width="50" height="50" class="power-symbol-stroke"/>',
             "Time Trap": '<circle cx="50" cy="50" r="30" class="power-symbol-stroke"/><path d="M50 35 V50 H65" class="power-symbol-stroke"/>',
-	    "Nothing": '<line x1="0" y1="0" x2="0" y2="0" class="power-symbol-stroke"/><line x1="0" y1="0" x2="0" y2="0" class="power-symbol-stroke"/>',
             "default": '<line x1="30" y1="50" x2="70" y2="50" class="power-symbol-stroke"/><line x1="50" y1="30" x2="50" y2="70" class="power-symbol-stroke"/>'
         };
 
@@ -253,7 +284,7 @@
             </svg>
         `;
 
-        let deck = JSON.parse(localStorage.getItem('jetlag_hns_v19')) || [];
+        let deck = JSON.parse(localStorage.getItem('jetlag_hns_v20')) || [];
         let currentFilter = 'All';
         let currentView = 'library';
 
@@ -263,14 +294,33 @@
             document.getElementById(`view-${view}`).classList.add('active', 'bg-blue-600', 'text-white');
             document.getElementById('library-controls').style.display = (view === 'library') ? 'flex' : 'none';
             renderContent();
+            window.scrollTo(0,0);
         }
 
         function filterType(type) {
             currentFilter = type;
-            document.querySelectorAll('#library-controls button').forEach(btn => btn.classList.remove('active', 'bg-white', 'shadow-sm', 'text-gray-900'));
+            document.querySelectorAll('#library-controls button').forEach(btn => {
+                btn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900');
+                btn.classList.add('text-gray-600');
+            });
             const activeBtn = document.getElementById(`tab-${type}`);
-            if (activeBtn) activeBtn.classList.add('active', 'bg-white', 'shadow-sm', 'text-gray-900');
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'shadow-sm', 'text-gray-900');
+                activeBtn.classList.remove('text-gray-600');
+            }
             renderContent();
+        }
+
+        function toggleMobileDeck() {
+            const inner = document.getElementById('deck-container-inner');
+            const arrow = document.getElementById('mobile-list-arrow');
+            if (inner.classList.contains('hidden-mobile')) {
+                inner.classList.remove('hidden-mobile');
+                arrow.innerText = '▲';
+            } else {
+                inner.classList.add('hidden-mobile');
+                arrow.innerText = '▼';
+            }
         }
 
         function renderContent() {
@@ -285,7 +335,7 @@
                 const flatDeck = [];
                 deck.forEach(item => { for(let i = 0; i < item.qty; i++) flatDeck.push(item); });
                 if (flatDeck.length === 0) {
-                    container.innerHTML = '<div class="text-gray-400 font-bold italic py-20 w-full text-center uppercase tracking-widest">Deck is empty</div>';
+                    container.innerHTML = '<div class="text-gray-400 font-bold italic py-20 w-full text-center">DECK IS EMPTY</div>';
                     return;
                 }
                 flatDeck.forEach(card => container.appendChild(createCardVisual(card, 'deck')));
@@ -303,7 +353,6 @@
         function createCardVisual(card, context) {
             const cardEl = document.createElement('div');
             cardEl.className = `card-base card-${card.type.toLowerCase().replace(' ', '-')}`;
-            
             const content = document.createElement('div');
             content.className = 'card-content';
             
@@ -313,7 +362,7 @@
                     <div class="text-[10px] font-black uppercase text-gray-400 mb-0.5 tracking-widest">Curse</div>
                     <div class="text-[16px] font-black leading-tight mb-1.5 uppercase text-gray-900">${card.name}</div>
                     <div class="leading-relaxed text-gray-600 font-medium flex-grow mb-1 ${fs}">${card.description}</div>
-                    <div class="mt-auto pt-1.5 border-t text-[10px] font-bold text-gray-800">Casting cost: ${card.cost}</div>
+                    <div class="mt-auto pt-1.5 border-t text-[10px] font-bold text-gray-800 uppercase italic">Cost: ${card.cost}</div>
                 `;
             } else if (card.type === 'Power-up') {
                 let titleHtml = "";
@@ -323,7 +372,6 @@
                 } else {
                     titleHtml = card.name.toUpperCase().split(' ').map(p => `<div>${p}</div>`).join('');
                 }
-
                 content.innerHTML = `
                     <div class="power-icon-container">
                         <svg viewBox="0 0 100 100" width="100%" height="100%">
@@ -331,7 +379,7 @@
                             ${powerIcons[card.name] || powerIcons.default}
                         </svg>
                     </div>
-                    <div class="text-[20px] font-black text-gray-800 leading-none tracking-tight mb-2 uppercase">${titleHtml}</div>
+                    <div class="text-[18px] font-black text-gray-800 leading-none tracking-tight mb-2 uppercase">${titleHtml}</div>
                     <div class="text-gray-600 leading-snug px-1 ${getAutoFontSize(card.description)}">${card.description}</div>
                 `;
             } else {
@@ -340,14 +388,12 @@
                 let timeFooter = '';
                 if (!isPercent) {
                     const s = Math.round(m * (2/3)), l = Math.round(m * (5/3));
-                    timeFooter = `
-                        <div class="time-box">
-                            <div class="time-val bg-orange-100 text-orange-700">S<br>${s}</div>
-                            <div class="time-val bg-red-100 text-red-700">M<br>${m}</div>
-                            <div class="time-val bg-red-600 text-white">L<br>${l}</div>
-                        </div>`;
+                    timeFooter = `<div class="time-box">
+                        <div class="time-val bg-orange-100 text-orange-700">S<br>${s}</div>
+                        <div class="time-val bg-red-100 text-red-700">M<br>${m}</div>
+                        <div class="time-val bg-red-600 text-white">L<br>${l}</div>
+                    </div>`;
                 }
-
                 content.innerHTML = `
                     <div class="mb-2">${hexClockSvg}</div>
                     <div class="text-center mb-4">
@@ -365,9 +411,9 @@
             const overlay = document.createElement('div');
             overlay.className = 'card-overlay';
             if (context === 'library') {
-                overlay.innerHTML = `<button onclick="addToDeck('${card.name}')" class="bg-blue-600 text-white px-6 py-2.5 rounded-full text-sm font-black shadow-xl transform hover:scale-105 transition uppercase">Add</button>`;
+                overlay.innerHTML = `<button onclick="addToDeck('${card.name}')" class="bg-blue-600 text-white px-6 py-2.5 rounded-full text-sm font-black shadow-xl transform active:scale-95 transition uppercase">Add</button>`;
             } else {
-                overlay.innerHTML = `<button onclick="updateQty('${card.name}', -1)" class="bg-red-600 text-white px-6 py-2.5 rounded-full text-sm font-black shadow-xl transform hover:scale-105 transition uppercase tracking-widest">Remove</button>`;
+                overlay.innerHTML = `<button onclick="updateQty('${card.name}', -1)" class="bg-red-600 text-white px-6 py-2.5 rounded-full text-sm font-black shadow-xl transform active:scale-95 transition uppercase tracking-widest">Remove</button>`;
             }
             cardEl.appendChild(overlay);
 
@@ -410,10 +456,10 @@
             document.getElementById('stat-curse').innerText = counts.Curse;
             document.getElementById('stat-power').innerText = counts["Power-up"];
             document.getElementById('stat-time').innerText = counts["Time Bonus"];
-            localStorage.setItem('jetlag_hns_v19', JSON.stringify(deck));
+            localStorage.setItem('jetlag_hns_v20', JSON.stringify(deck));
         }
 
-        function saveDeck() { localStorage.setItem('jetlag_hns_v19', JSON.stringify(deck)); alert('Deck saved!'); }
+        function saveDeck() { localStorage.setItem('jetlag_hns_v20', JSON.stringify(deck)); alert('Deck saved!'); }
         function clearDeck() { if(confirm('Clear entire deck?')) { deck = []; updateDeckUI(); renderContent(); } }
 
         new Sortable(document.getElementById('deck-list'), {
