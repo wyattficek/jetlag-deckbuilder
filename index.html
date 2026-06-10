@@ -80,42 +80,22 @@
             padding-bottom: 10px;
         }
 
-        #deck-container-inner.hidden-mobile {
-            display: none;
-        }
-        @media (min-width: 1024px) {
-            #deck-container-inner.hidden-mobile {
-                display: block !important;
-            }
-        }
+        #deck-container-inner.hidden-mobile { display: none; }
+        @media (min-width: 1024px) { #deck-container-inner.hidden-mobile { display: block !important; } }
 
-        /* Toast Notification Styling */
         #toast {
-            visibility: hidden;
-            min-width: 200px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 8px;
-            padding: 12px;
-            position: fixed;
-            z-index: 100;
-            left: 50%;
-            bottom: 30px;
-            transform: translateX(-50%);
-            font-weight: 600;
+            visibility: hidden; min-width: 200px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 12px; position: fixed;
+            z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: 600;
         }
-        #toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="toast">Deck copied!</div>
+    <div id="toast">Copied to clipboard!</div>
 
     <div class="max-w-7xl mx-auto">
         <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -124,9 +104,10 @@
                 <p class="text-sm md:text-base text-gray-500 font-medium italic">Deckbuilder Tool</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="copyDeckList()" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-black shadow-sm transition text-sm">Copy Deck</button>
-                <button onclick="saveDeck()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition text-sm">Save Deck</button>
-                <button onclick="clearDeck()" class="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-lg font-bold hover:bg-gray-50 transition text-sm">Clear</button>
+                <button onclick="exportDeck()" class="bg-gray-800 text-white px-3 py-2 rounded-lg font-bold hover:bg-black transition text-xs">Export Deck</button>
+                <button onclick="importDeck()" class="bg-gray-100 text-gray-800 border border-gray-300 px-3 py-2 rounded-lg font-bold hover:bg-gray-200 transition text-xs">Import Deck</button>
+                <button onclick="saveDeck()" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-bold hover:bg-blue-700 transition text-xs">Save Local</button>
+                <button onclick="clearDeck()" class="bg-white text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold hover:bg-red-50 transition text-xs">Clear</button>
             </div>
         </header>
 
@@ -141,12 +122,10 @@
                 <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-6 shadow-sm">
                     <div class="flex items-center justify-between cursor-pointer lg:cursor-default" onclick="toggleMobileDeck()">
                         <h2 class="text-lg md:text-xl font-black uppercase flex items-center gap-2">
-                            Your Deck
+                            Deck List 
                             <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span>
                         </h2>
-                        <div class="lg:hidden text-gray-400">
-                            <span id="mobile-list-arrow">▼</span>
-                        </div>
+                        <div class="lg:hidden text-gray-400"><span id="mobile-list-arrow">▼</span></div>
                     </div>
 
                     <div id="deck-container-inner" class="hidden-mobile mt-4">
@@ -170,7 +149,7 @@
                 </div>
             </div>
 
-            <!-- Content -->
+            <!-- Content Area -->
             <div class="lg:col-span-3 relative">
                 <div id="library-controls" class="flex flex-col gap-4 mb-4">
                     <div class="flex bg-gray-200 p-1 rounded-xl w-full overflow-x-auto scrollbar-hide">
@@ -179,7 +158,7 @@
                         <button onclick="filterType('Power-up')" id="tab-Power-up" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600 whitespace-nowrap">Power-ups</button>
                         <button onclick="filterType('Time Bonus')" id="tab-Time Bonus" class="flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600 whitespace-nowrap">Time Bonus</button>
                     </div>
-                    <input type="text" id="search" oninput="renderContent()" placeholder="Search library..." class="border border-gray-200 rounded-xl px-4 py-3 w-full outline-none shadow-sm focus:ring-2 focus:ring-blue-500 text-sm">
+                    <input type="text" id="search" oninput="renderContent()" placeholder="Search cards..." class="border border-gray-200 rounded-xl px-4 py-3 w-full outline-none shadow-sm focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
                 
                 <div id="main-content" class="flex flex-wrap gap-4 md:gap-6 justify-center lg:justify-start pb-20"></div>
@@ -295,17 +274,9 @@
             "default": '<line x1="30" y1="50" x2="70" y2="50" class="power-symbol-stroke"/><line x1="50" y1="30" x2="50" y2="70" class="power-symbol-stroke"/>'
         };
 
-        const hexClockSvg = `
-            <svg viewBox="0 0 100 100" class="time-icon-large">
-                <polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" fill="none" stroke="#2d2d2d" stroke-width="5"/>
-                <line x1="50" y1="12" x2="50" y2="18" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="88" x2="50" y2="82" stroke="#2d2d2d" stroke-width="3"/>
-                <line x1="15" y1="35" x2="20" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="35" x2="80" y2="38" stroke="#2d2d2d" stroke-width="3"/>
-                <line x1="50" y1="50" x2="50" y2="25" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="50" x2="70" y2="50" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/>
-                <circle cx="50" cy="50" r="4" fill="#2d2d2d"/>
-            </svg>
-        `;
+        const hexClockSvg = `<svg viewBox="0 0 100 100" class="time-icon-large"><polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" fill="none" stroke="#2d2d2d" stroke-width="5"/><line x1="50" y1="12" x2="50" y2="18" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="88" x2="50" y2="82" stroke="#2d2d2d" stroke-width="3"/><line x1="15" y1="35" x2="20" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="35" x2="80" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="50" x2="50" y2="25" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="50" x2="70" y2="50" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="#2d2d2d"/></svg>`;
 
-        let deck = JSON.parse(localStorage.getItem('jetlag_hns_v21')) || [];
+        let deck = JSON.parse(localStorage.getItem('jetlag_hns_v22')) || [];
         let currentFilter = 'All';
         let currentView = 'library';
 
@@ -344,15 +315,68 @@
             }
         }
 
-        function copyDeckList() {
+        // --- EXPORT & IMPORT LOGIC ---
+
+        function exportDeck() {
             if (deck.length === 0) return alert("Deck is empty!");
             const text = deck.map(item => `${item.name}${item.qty > 1 ? ` (x${item.qty})` : ''}`).join('\n');
-            navigator.clipboard.writeText(text).then(() => {
-                const toast = document.getElementById("toast");
-                toast.classList.add("show");
-                setTimeout(() => toast.classList.remove("show"), 3000);
-            });
+            
+            // Fallback for Chrome Desktop (Local File Support)
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Deck list copied!");
+            } catch (err) {
+                alert("Failed to copy. Please manually copy the deck list.");
+            }
+            document.body.removeChild(textArea);
         }
+
+        function importDeck() {
+            const input = prompt("Paste your deck list here (e.g. Veto (x3), Curse of The Zoologist...):");
+            if (!input) return;
+
+            const lines = input.split(/[\n,]/);
+            const newDeck = [];
+            const regex = /(.*?)\s\(x(\d+)\)/;
+
+            lines.forEach(line => {
+                let name = line.trim();
+                let qty = 1;
+
+                const match = name.match(regex);
+                if (match) {
+                    name = match[1].trim();
+                    qty = parseInt(match[2]);
+                }
+
+                const cardRef = cardData.find(c => c.name.toLowerCase() === name.toLowerCase());
+                if (cardRef) {
+                    newDeck.push({ ...cardRef, qty: qty });
+                }
+            });
+
+            if (newDeck.length > 0) {
+                deck = newDeck;
+                updateDeckUI();
+                renderContent();
+                showToast("Deck imported!");
+            } else {
+                alert("No matching cards found in that list.");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 3000);
+        }
+
+        // --- UI CORE ---
 
         function renderContent() {
             const container = document.getElementById('main-content');
@@ -366,7 +390,7 @@
                 const flatDeck = [];
                 deck.forEach(item => { for(let i = 0; i < item.qty; i++) flatDeck.push(item); });
                 if (flatDeck.length === 0) {
-                    container.innerHTML = '<div class="text-gray-400 font-bold italic py-20 w-full text-center">DECK IS EMPTY</div>';
+                    container.innerHTML = '<div class="text-gray-400 font-bold italic py-20 w-full text-center uppercase">No cards in deck</div>';
                     return;
                 }
                 flatDeck.forEach(card => container.appendChild(createCardVisual(card, 'deck')));
@@ -487,10 +511,10 @@
             document.getElementById('stat-curse').innerText = counts.Curse;
             document.getElementById('stat-power').innerText = counts["Power-up"];
             document.getElementById('stat-time').innerText = counts["Time Bonus"];
-            localStorage.setItem('jetlag_hns_v21', JSON.stringify(deck));
+            localStorage.setItem('jetlag_hns_v22', JSON.stringify(deck));
         }
 
-        function saveDeck() { localStorage.setItem('jetlag_hns_v21', JSON.stringify(deck)); alert('Deck saved!'); }
+        function saveDeck() { localStorage.setItem('jetlag_hns_v22', JSON.stringify(deck)); showToast("Deck saved!"); }
         function clearDeck() { if(confirm('Clear entire deck?')) { deck = []; updateDeckUI(); renderContent(); } }
 
         new Sortable(document.getElementById('deck-list'), {
