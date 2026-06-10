@@ -274,7 +274,16 @@
             "default": '<line x1="30" y1="50" x2="70" y2="50" class="power-symbol-stroke"/><line x1="50" y1="30" x2="50" y2="70" class="power-symbol-stroke"/>'
         };
 
-        const hexClockSvg = `<svg viewBox="0 0 100 100" class="time-icon-large"><polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" fill="none" stroke="#2d2d2d" stroke-width="5"/><line x1="50" y1="12" x2="50" y2="18" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="88" x2="50" y2="82" stroke="#2d2d2d" stroke-width="3"/><line x1="15" y1="35" x2="20" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="35" x2="80" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="50" x2="50" y2="25" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="50" x2="70" y2="50" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="#2d2d2d"/></svg>`;
+        const hexClockSvg = `
+            <svg viewBox="0 0 100 100" class="time-icon-large">
+                <polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" fill="none" stroke="#2d2d2d" stroke-width="5"/>
+                <line x1="50" y1="12" x2="50" y2="18" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="88" x2="50" y2="82" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="15" y1="35" x2="20" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="35" x2="80" y2="38" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="15" y1="65" x2="20" y2="62" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="65" x2="80" y2="62" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="50" y1="50" x2="50" y2="25" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="50" x2="70" y2="50" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="4" fill="#2d2d2d"/>
+            </svg>
+        `;
 
         let deck = JSON.parse(localStorage.getItem('jetlag_hns_v22')) || [];
         let currentFilter = 'All';
