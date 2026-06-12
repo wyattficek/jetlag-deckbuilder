@@ -20,38 +20,32 @@
         
         @media (min-width: 1024px) { .card-base:hover { transform: translateY(-4px); } }
 
-        /* Card Borders & Themes */
+        /* Card Styles */
         .card-curse { border: 1px solid #e5e7eb; border-top: 12px solid #8e7cc3; }
         .card-time-bonus { border: 1.5px solid #3b82f6; }
         .card-power-up { border: 6px solid #d32f2f; background-color: #ffffff; }
 
         .card-content { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-        
-        .card-power-up .card-content, .card-time-bonus .card-content {
-            justify-content: center; align-items: center; text-align: center;
-        }
+        .card-power-up .card-content, .card-time-bonus .card-content { justify-content: center; align-items: center; text-align: center; }
 
+        /* Overlay */
         .card-overlay {
             position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.1);
             display: flex; align-items: center; justify-content: center;
             opacity: 0; transition: opacity 0.2s; z-index: 30; border-radius: inherit;
             backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
         }
-        .card-base:hover .card-overlay { opacity: 1; }
+        /* Mobile tap support */
+        .card-base:hover .card-overlay, .card-base:active .card-overlay { opacity: 1; }
 
-        /* Power-up Icons */
-        .power-icon-container { width: 85px; height: 85px; margin-bottom: 12px; flex-shrink: 0; }
+        .power-icon-container { width: 85px; height: 85px; margin-bottom: 5px; flex-shrink: 0; }
         .power-hex-stroke { fill: none; stroke: #d32f2f; stroke-width: 6; }
         .power-symbol-stroke { fill: none; stroke: #d32f2f; stroke-width: 5; stroke-linecap: round; }
-
-        /* Time Bonus Icon */
         .time-icon-large { width: 95px; height: 95px; margin-bottom: 5px; flex-shrink: 0; }
 
-        /* S/M/L Time Boxes */
-        .time-box { display: flex; gap: 4px; margin-top: auto; width: 100%; }
-        .time-val { flex: 1; text-align: center; border-radius: 6px; padding: 4px 2px; font-size: 11px; font-weight: 800; line-height: 1.1; }
+        .time-box { display: flex; gap: 6px; margin-top: auto; width: 100%; }
+        .time-val { flex: 1; text-align: center; border-radius: 8px; padding: 4px 0; font-size: 11px; font-weight: 800; line-height: 1.1; }
 
-        /* Navigation Highlighting */
         .tab-active { background-color: white !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; color: #111827 !important; }
         .nav-active { background-color: #3b82f6 !important; color: white !important; }
 
@@ -61,7 +55,6 @@
             display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
 
-        /* Modals */
         #modal-overlay, #exit-modal-overlay, #start-modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.85);
             z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px;
@@ -69,8 +62,12 @@
         .selection-grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; padding: 10px; }
         .selected-card { border: 6px solid #10b981 !important; transform: scale(1.02); }
         .discard-card { border: 6px solid #ef4444 !important; opacity: 0.6; }
-        
-        .hidden { display: none !important; }
+
+        /* Mobile specific list hiding */
+        #mobile-list-content { display: none; }
+        @media (min-width: 1024px) {
+            #mobile-list-content { display: block !important; }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -81,16 +78,16 @@
     <div id="start-modal-overlay">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
             <h2 class="text-2xl font-black uppercase mb-2">Game Mode</h2>
-            <p class="text-gray-500 text-sm mb-8 italic">You have a saved run available.</p>
+            <p class="text-gray-500 text-sm mb-8">Detected a saved game. What would you like to do?</p>
             <div class="flex flex-col gap-3">
-                <button onclick="enterGameMode()" class="w-full py-4 rounded-2xl font-black bg-blue-600 text-white shadow-lg uppercase">Continue Saved Game</button>
-                <button onclick="launchGame()" class="w-full py-4 rounded-2xl font-black bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition uppercase">Start New Game</button>
-                <button onclick="closeStartModal()" class="w-full py-3 font-bold text-gray-400 uppercase text-xs">Back</button>
+                <button onclick="enterGameMode()" class="w-full py-4 rounded-2xl font-black bg-blue-600 text-white uppercase shadow-lg">Continue Saved Game</button>
+                <button onclick="launchGame()" class="w-full py-4 rounded-2xl font-black bg-white text-gray-800 border border-gray-300 transition uppercase">Start New Game</button>
+                <button onclick="closeStartModal()" class="w-full py-3 font-bold text-gray-400 uppercase text-xs">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: DRAW & SELECT -->
+    <!-- MODAL: DRAW SELECTION -->
     <div id="modal-overlay">
         <div class="bg-white rounded-3xl p-6 w-full max-w-6xl max-h-[92vh] shadow-2xl flex flex-col">
             <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 flex-shrink-0">
@@ -114,7 +111,7 @@
         </div>
     </div>
 
-    <!-- MODAL: EXIT OPTIONS -->
+    <!-- MODAL: EXIT -->
     <div id="exit-modal-overlay">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
             <h2 class="text-2xl font-black uppercase mb-2 text-red-600">End Game?</h2>
@@ -130,13 +127,13 @@
     <div id="builder-mode" class="max-w-7xl mx-auto">
         <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl md:text-3xl font-black text-gray-900 uppercase">Jet Lag: The Game Hide + Seek</h1>
+                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Jet Lag: The Game Hide + Seek</h1>
                 <p class="text-sm md:text-base text-gray-500 font-medium italic">Deckbuilder Tool + Online Game [BETA]</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="exportDeck()" class="bg-gray-800 text-white px-3 py-2 rounded-lg font-bold transition text-xs">Export</button>
                 <button onclick="importDeck()" class="bg-gray-100 border border-gray-300 px-3 py-2 rounded-lg font-bold transition text-xs">Import</button>
-                <button id="btn-start-game" onclick="handleStartClick()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold transition text-xs cursor-not-allowed opacity-50" disabled>Start Game</button>
+                <button id="btn-start-game" onclick="handleStartClick()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold transition text-xs opacity-50 cursor-not-allowed" disabled>Start Game</button>
                 <button onclick="clearDeck()" class="bg-white text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold text-xs">Clear</button>
             </div>
         </header>
@@ -147,14 +144,20 @@
         </nav>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1">
-                <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-4 shadow-sm">
-                    <h2 class="text-lg font-black uppercase flex items-center justify-between">Your Deck <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span></h2>
-                    <div id="deck-list" class="mt-4 max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
-                    <div class="border-t border-gray-200 pt-4 space-y-2 text-sm font-bold text-gray-600">
-                        <div class="flex justify-between"><span>Curses</span> <span id="stat-curse" class="text-gray-900 font-black">0</span></div>
-                        <div class="flex justify-between"><span>Power-ups</span> <span id="stat-power" class="text-gray-900 font-black">0</span></div>
-                        <div class="flex justify-between"><span>Time Bonus</span> <span id="stat-time" class="text-gray-900 font-black">0</span></div>
+            <div class="lg:col-span-1 lg:h-fit lg:sticky lg:top-8 z-[40]">
+                <!-- List Accordion -->
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl mb-4 shadow-sm">
+                    <div class="p-5 flex items-center justify-between cursor-pointer lg:cursor-default" onclick="toggleMobileList()">
+                        <h2 class="text-lg font-black uppercase flex items-center gap-2">My List <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span></h2>
+                        <span class="lg:hidden text-gray-400 text-xs" id="mobile-arrow">▼</span>
+                    </div>
+                    <div id="mobile-list-content" class="px-5 pb-5">
+                        <div id="deck-list" class="max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
+                        <div class="border-t border-gray-200 pt-4 space-y-2 text-sm font-bold text-gray-600">
+                            <div class="flex justify-between"><span>Curses</span> <span id="stat-curse" class="text-gray-900">0</span></div>
+                            <div class="flex justify-between"><span>Power-ups</span> <span id="stat-power" class="text-gray-900">0</span></div>
+                            <div class="flex justify-between"><span>Time Bonus</span> <span id="stat-time" class="text-gray-900">0</span></div>
+                        </div>
                     </div>
                 </div>
 
@@ -193,8 +196,8 @@
                 <p class="text-gray-500 font-bold text-xs uppercase tracking-widest">Draw Pile: <span id="game-deck-count" class="text-gray-900 font-black">0</span></p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button onclick="kingAction()" class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-xs hover:bg-orange-200 transition">5-MIN KING</button>
-                <button onclick="emptyMindAction()" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-xl font-black text-xs hover:bg-purple-200 transition">EMPTY MIND</button>
+                <button onclick="kingAction()" class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-xs">5-MIN KING</button>
+                <button onclick="emptyMindAction()" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-xl font-black text-xs">EMPTY MIND</button>
                 <button onclick="openExitModal()" class="bg-white text-red-600 border border-red-200 px-4 py-2 rounded-xl font-black text-xs hover:bg-red-50 transition">END GAME</button>
             </div>
         </header>
@@ -363,13 +366,13 @@
         let currentFilter = 'All';
         let currentView = 'library';
 
-        // --- NAVIGATION ---
         function setView(v) { 
             currentView = v; 
             document.querySelectorAll('.view-nav-btn').forEach(b => b.classList.remove('nav-active', 'text-white'));
             document.getElementById(`nav-${v}`).classList.add('nav-active');
             document.getElementById('library-tabs').style.display = (v === 'library') ? 'flex' : 'none';
             renderContent(); 
+            window.scrollTo(0,0);
         }
 
         function filterType(t) { 
@@ -430,14 +433,20 @@
 
             el.appendChild(cnt);
             const over = document.createElement('div'); over.className = 'card-overlay';
-            if (context === 'library') over.innerHTML = `<button onclick="addToDeck('${card.name}')" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">Add</button>`;
+            if (context === 'library') over.innerHTML = `<button onclick="addToDeck('${card.name}')" class="bg-blue-600 text-white px-6 py-2.5 rounded-full font-black uppercase text-sm shadow-xl">Add</button>`;
             else if (context === 'deck') over.innerHTML = `<button onclick="updateQty('${card.name}', -1)" class="bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">Remove</button>`;
             else if (context === 'game-hand') over.innerHTML = `<button onclick="useCardAt(${idx}, '${card.name}')" class="bg-emerald-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">USE CARD</button>`;
             el.appendChild(over);
             return el;
         }
 
-        // DECK HANDLERS
+        function toggleMobileList() {
+            const content = document.getElementById('mobile-list-content');
+            const arrow = document.getElementById('mobile-arrow');
+            if(content.style.display === 'block') { content.style.display = 'none'; arrow.innerText = '▼'; }
+            else { content.style.display = 'block'; arrow.innerText = '▲'; }
+        }
+
         function updateDeckUI() {
             const list = document.getElementById('deck-list'); list.innerHTML = '';
             let counts = { Curse: 0, "Power-up": 0, "Time Bonus": 0 };
@@ -458,8 +467,11 @@
             document.getElementById('stat-power').innerText = counts["Power-up"];
             document.getElementById('stat-time').innerText = counts["Time Bonus"];
             const btn = document.getElementById('btn-start-game');
-            if (total >= 100) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.classList.add('cursor-pointer'); }
-            else { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.classList.remove('cursor-pointer'); }
+            if (total >= 100) { 
+                btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.classList.add('cursor-pointer');
+            } else { 
+                btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.classList.remove('cursor-pointer');
+            }
             localStorage.setItem('jetlag_deck_v36', JSON.stringify(deck));
         }
 
@@ -473,7 +485,7 @@
             updateDeckUI(); renderContent();
         }
 
-        // --- GAME LOGIC ---
+        // --- GAME ENGINE ---
         function handleStartClick() { if (gameState) document.getElementById('start-modal-overlay').style.display = 'flex'; else launchGame(); }
         function closeStartModal() { document.getElementById('start-modal-overlay').style.display = 'none'; }
         function launchGame() {
