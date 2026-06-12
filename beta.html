@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Jet Lag Online Tool [BETA]</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow-x: hidden; }
+        
+        .card-base {
+            width: 230px; height: 320px; border-radius: 16px;
+            display: flex; flex-direction: column; position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); background: white;
+            user-select: none; transition: transform 0.2s ease;
+            overflow: hidden; background-clip: padding-box; flex-shrink: 0;
+        }
+        
+        @media (min-width: 1024px) { .card-base:hover { transform: translateY(-4px); } }
+
+        /* Card Borders & Themes */
+        .card-curse { border: 1px solid #e5e7eb; border-top: 12px solid #8e7cc3; }
+        .card-time-bonus { border: 1.5px solid #3b82f6; }
+        .card-power-up { border: 6px solid #d32f2f; background-color: #ffffff; }
+
+        .card-content { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .card-power-up .card-content, .card-time-bonus .card-content {
+            justify-content: center; align-items: center; text-align: center;
+        }
+
+        .card-overlay {
+            position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; z-index: 30; border-radius: inherit;
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        }
+        .card-base:hover .card-overlay { opacity: 1; }
+
+        /* Power-up Icons */
+        .power-icon-container { width: 85px; height: 85px; margin-bottom: 12px; flex-shrink: 0; }
+        .power-hex-stroke { fill: none; stroke: #d32f2f; stroke-width: 6; }
+        .power-symbol-stroke { fill: none; stroke: #d32f2f; stroke-width: 5; stroke-linecap: round; }
+
+        /* Time Bonus Icon */
+        .time-icon-large { width: 95px; height: 95px; margin-bottom: 5px; flex-shrink: 0; }
+
+        /* S/M/L Time Boxes */
+        .time-box { display: flex; gap: 4px; margin-top: auto; width: 100%; }
+        .time-val { flex: 1; text-align: center; border-radius: 6px; padding: 4px 2px; font-size: 11px; font-weight: 800; line-height: 1.1; }
+
+        /* Navigation Highlighting */
+        .tab-active { background-color: white !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; color: #111827 !important; }
+        .nav-active { background-color: #3b82f6 !important; color: white !important; }
+
+        .deck-item {
+            cursor: grab; background: white; border: 1px solid #ddd;
+            margin-bottom: 8px; padding: 10px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        }
+
+        /* Modals */
+        #modal-overlay, #exit-modal-overlay, #start-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .selection-grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; padding: 10px; }
+        .selected-card { border: 6px solid #10b981 !important; transform: scale(1.02); }
+        .discard-card { border: 6px solid #ef4444 !important; opacity: 0.6; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="toast" class="hidden fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full font-bold z-[200] shadow-xl">Action Complete!</div>
+
+    <!-- MODAL: START GAME OPTIONS -->
+    <div id="start-modal-overlay">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
+            <h2 class="text-2xl font-black uppercase mb-2">Game Mode</h2>
+            <p class="text-gray-500 text-sm mb-8 italic">You have a saved run available.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="enterGameMode()" class="w-full py-4 rounded-2xl font-black bg-blue-600 text-white shadow-lg uppercase">Continue Saved Game</button>
+                <button onclick="launchGame()" class="w-full py-4 rounded-2xl font-black bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition uppercase">Start New Game</button>
+                <button onclick="closeStartModal()" class="w-full py-3 font-bold text-gray-400 uppercase text-xs">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DRAW & SELECT -->
+    <div id="modal-overlay">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-6xl max-h-[92vh] shadow-2xl flex flex-col">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 flex-shrink-0">
+                <h2 id="modal-title" class="text-xl font-black uppercase">Draw & Selection</h2>
+                <div id="selection-status" class="font-black text-sm"></div>
+            </div>
+            <div class="overflow-y-auto flex-grow pr-4">
+                <div class="mb-6">
+                    <h3 class="text-[10px] font-black uppercase text-gray-400 mb-4 border-b pb-1">Drawn Cards</h3>
+                    <div id="modal-grid" class="selection-grid"></div>
+                </div>
+                <div id="hand-management-section" class="hidden">
+                    <h3 class="text-[10px] font-black uppercase text-red-400 mb-4 border-b border-red-100 pb-1">Replace from Hand</h3>
+                    <div id="modal-hand-grid" class="selection-grid"></div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3 border-t pt-4 flex-shrink-0">
+                <button onclick="closeModal()" class="px-6 py-2 rounded-xl font-bold bg-gray-100">Cancel</button>
+                <button id="modal-confirm" class="px-8 py-2 rounded-xl font-bold bg-emerald-600 text-white shadow-lg">Confirm Selection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EXIT OPTIONS -->
+    <div id="exit-modal-overlay">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
+            <h2 class="text-2xl font-black uppercase mb-2 text-red-600">End Game?</h2>
+            <div class="flex flex-col gap-3 mt-6">
+                <button onclick="handleGameExit(true)" class="w-full py-4 rounded-2xl font-black bg-blue-600 text-white shadow-lg uppercase">Exit and Save</button>
+                <button onclick="handleGameExit(false)" class="w-full py-4 rounded-2xl font-black bg-white text-red-600 border border-red-200 uppercase">Exit Without Saving</button>
+                <button onclick="closeExitModal()" class="w-full py-3 font-bold text-gray-400 uppercase text-xs">Stay in Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILDER MODE -->
+    <div id="builder-mode" class="max-w-7xl mx-auto">
+        <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black text-gray-900 uppercase">Jet Lag: The Game Hide + Seek</h1>
+                <p class="text-sm md:text-base text-gray-500 font-medium italic">Deckbuilder Tool + Online Game [BETA]</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportDeck()" class="bg-gray-800 text-white px-3 py-2 rounded-lg font-bold transition text-xs">Export</button>
+                <button onclick="importDeck()" class="bg-gray-100 border border-gray-300 px-3 py-2 rounded-lg font-bold transition text-xs">Import</button>
+                <button id="btn-start-game" onclick="handleStartClick()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold transition text-xs cursor-not-allowed opacity-50" disabled>Start Game</button>
+                <button onclick="clearDeck()" class="bg-white text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold text-xs">Clear</button>
+            </div>
+        </header>
+
+        <nav class="flex bg-gray-200 p-1 rounded-xl w-full md:w-fit mb-8 shadow-inner">
+            <button onclick="setView('library')" id="nav-library" class="view-nav-btn nav-active px-6 py-2 rounded-lg font-bold text-sm transition">Card Library</button>
+            <button onclick="setView('deck')" id="nav-deck" class="view-nav-btn px-6 py-2 rounded-lg font-bold text-sm transition text-gray-600">Visual Deck</button>
+        </nav>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-1">
+                <div class="bg-gray-50 p-5 border border-gray-200 rounded-2xl mb-4 shadow-sm">
+                    <h2 class="text-lg font-black uppercase flex items-center justify-between">Your Deck <span id="deck-count" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">0</span></h2>
+                    <div id="deck-list" class="mt-4 max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
+                    <div class="border-t border-gray-200 pt-4 space-y-2 text-sm font-bold text-gray-600">
+                        <div class="flex justify-between"><span>Curses</span> <span id="stat-curse" class="text-gray-900 font-black">0</span></div>
+                        <div class="flex justify-between"><span>Power-ups</span> <span id="stat-power" class="text-gray-900 font-black">0</span></div>
+                        <div class="flex justify-between"><span>Time Bonus</span> <span id="stat-time" class="text-gray-900 font-black">0</span></div>
+                    </div>
+                </div>
+
+                <button onclick="addBaseDeck()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-black uppercase text-xs hover:bg-blue-700 transition shadow-lg mb-4">Add Base Deck</button>
+
+                <div class="bg-blue-50 border border-blue-100 p-5 rounded-2xl text-blue-900 shadow-sm text-[11px] leading-relaxed">
+                    <h3 class="font-black text-xs uppercase mb-2 border-b border-blue-200 pb-1">Info</h3>
+		    <p class="font-bold mb-1">Deck Standards</p>
+                    <p>The standard deck contains 55 time bonuses, 24 curses, and 21 power-ups for a total of 100 cards. This doesn't need to be followed for custom decks, but can be helpful to know for game balancing.</p>
+		    <br>
+		    <p class="font-bold mb-1">Starting the Game</p>
+                    <p>You will need to add 100 cards to your deck to start the game. You may use the "Add Base Deck" button to achieve this, or build a custom card that meets the 100 card minimum.</p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="flex flex-col gap-4 mb-4">
+                    <div id="library-tabs" class="flex bg-gray-200 p-1 rounded-xl w-full overflow-x-auto">
+                        <button onclick="filterType('All')" id="tab-All" class="filter-btn flex-1 px-4 py-2 rounded-lg font-bold text-xs transition tab-active">All</button>
+                        <button onclick="filterType('Curse')" id="tab-Curse" class="filter-btn flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600">Curses</button>
+                        <button onclick="filterType('Power-up')" id="tab-Power-up" class="filter-btn flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600">Power-ups</button>
+                        <button onclick="filterType('Time Bonus')" id="tab-Time Bonus" class="filter-btn flex-1 px-4 py-2 rounded-lg font-bold text-xs transition text-gray-600">Time Bonus</button>
+                    </div>
+                    <input type="text" id="search" oninput="renderContent()" placeholder="Search cards..." class="border border-gray-200 rounded-xl px-4 py-3 w-full outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm">
+                </div>
+                <div id="main-content" class="flex flex-wrap gap-4 md:gap-6 justify-center lg:justify-start pb-20"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME MODE -->
+    <div id="game-mode" class="max-w-7xl mx-auto hidden">
+        <header class="mb-8 border-b pb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <h1 class="text-3xl font-black text-gray-900 uppercase">Game Active</h1>
+                <p class="text-gray-500 font-bold text-xs uppercase tracking-widest">Draw Pile: <span id="game-deck-count" class="text-gray-900 font-black">0</span></p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="kingAction()" class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-xs hover:bg-orange-200 transition">5-MIN KING</button>
+                <button onclick="emptyMindAction()" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-xl font-black text-xs hover:bg-purple-200 transition">EMPTY MIND</button>
+                <button onclick="openExitModal()" class="bg-white text-red-600 border border-red-200 px-4 py-2 rounded-xl font-black text-xs hover:bg-red-50 transition">END GAME</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 pb-20">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-6 rounded-3xl border shadow-xl">
+                    <h3 class="font-black uppercase text-xs mb-4 text-gray-400">Draw Action</h3>
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="text-[9px] font-black text-gray-400 uppercase">Top</label>
+                                <input type="number" id="draw-count" value="3" class="w-full bg-gray-100 rounded-lg p-2 font-bold outline-none">
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-[9px] font-black text-gray-400 uppercase">Keep Up To</label>
+                                <input type="number" id="keep-count" value="1" class="w-full bg-gray-100 rounded-lg p-2 font-bold outline-none">
+                            </div>
+                        </div>
+                        <button onclick="gameDraw()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition">Draw Cards</button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 p-6 rounded-3xl text-white shadow-xl">
+                    <h3 class="font-black uppercase text-xs mb-4 text-gray-400">Hand Limit</h3>
+                    <div class="flex items-center gap-3 mb-4">
+                        <button onclick="adjustLimit(-1)" class="w-10 h-10 bg-gray-700 rounded-lg font-black text-xl hover:bg-gray-600 transition">−</button>
+                        <div class="flex-1 text-center text-2xl font-black" id="hand-limit-display">6</div>
+                        <button onclick="adjustLimit(1)" class="w-10 h-10 bg-gray-700 rounded-lg font-black text-xl hover:bg-gray-600">＋</button>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="no-limit-check" onchange="toggleNoLimit()" class="w-5 h-5 rounded accent-blue-500">
+                        <span class="text-xs font-bold uppercase">No Limit</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <h2 class="text-2xl font-black uppercase tracking-tighter mb-6">Your Hand (<span id="hand-count">0</span>)</h2>
+                <div id="hand-grid" class="flex flex-wrap gap-6 justify-center lg:justify-start"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cardData = [
+            { name: "Curse of The Zoologist", type: "Curse", description: "Take a photo of a wild fish, bird, mammal, reptile, amphibian, or bug. The seekers must take a picture of a wild animal in the same category before asking another question.", cost: "A photo of an animal" },
+            { name: "Curse Of The Unguided Tourist", type: "Curse", description: "Send the seekers an unzoomed Google Street View image from a street within 500 feet of where they are now. The shot has to be parallel to the horizon and include at least one human-built structure other than a road. Without using the internet for research, they must find what you sent them in real life before they can use transportation or ask another question. They must send a picture to the hiders for verification.", cost: "Seekers must be outside" },
+            { name: "Curse Of The Endless Tumble", type: "Curse", description: "Seekers must roll a die at least 100 feet and have it land on a 5 or a 6 before they can ask another question. The die must roll the full distance, unaided, using only the momentum from the initial throw and gravity to travel the 100 feet. If the seekers accidentally hit someone with a die, you are awarded a [S 10, M 20, L 30] minute bonus.", cost: "Roll a die. If it's a 5 or a 6, this card has no effect." },
+            { name: "Curse Of The Hidden Hangman", type: "Curse", description: "Before asking another question or boarding another form of transportation, seekers must beat the hider in a game of hangman. To play, the hider chooses a 5 letter word, and the game ends after either a correct word guess or 7 wrong letter guesses (head, body, two arms, two legs, and a hat). The hider must respond to all queries within 30 seconds. The seekers cannot challenge the hider for 10 minutes after a loss. After [S 1, M 2, L 3] losses, the seekers must wait 10 more minutes and then the curse is cleared.", cost: "Discard 2 cards" },
+            { name: "Curse Of The Overflowing Chalice", type: "Curse", description: "For the next three questions, you may draw (not keep) an additional card when drawing from the hider deck.", cost: "Discard a card" },
+            { name: "Curse Of The Mediocre Travel Agent", type: "Curse", description: "Choose any publicly-accessible place within [S 0.25, M 0.25, L 0.50] miles of the seekers current location. They cannot currently be on transit. They must go there, and spend at least [S 5, M 5, L 10] minutes there, before asking another question. They must send you at least three photos of them enjoying their vacation, and procure an object to bring you as a souvenir. If this souvenir is lost before they can give it to you, you are awarded an extra [S 30, M 45, L 60] minutes.", cost: "Their vacation destination must be further from you than their current location" },
+            { name: "Curse Of The Luxury Car", type: "Curse", description: "Take a photo of a car. The seekers must take a photo of a more expensive car before asking another question.", cost: "A photo of a car" },
+            { name: "Curse Of The U-Turn", type: "Curse", description: "The seekers must disembark their current mode of transportation at the next station (as long as that station is serviced by another form of transit in the next [S 0.5, M 0.5, L 1] hours.)", cost: "Seekers must be heading the wrong way. (Their next station is further from you than they are.)" },
+            { name: "Curse Of The Bridge Troll", type: "Curse", description: "The seekers must ask their next question from under a bridge.", cost: "Seekers must be at least [S 1, M 5, L 30] miles from you" },
+            { name: "Curse Of Water Weight", type: "Curse", description: "The seekers must acquire and carry at least 2 liters of liquid per seeker for the rest of your run. They cannot ask another question until they have acquired the liquid. The water may be distributed between seekers as they see fit. If the liquid is lost or abandoned at any point after acquisition, the hider is awarded a [S 30, M 30, L 60] minute bonus.", cost: "Seekers must be within 1,000 feet of a body of water" },
+            { name: "Curse Of The Jammed Door", type: "Curse", description: "For the next [S 0.5, M 1, L 3] hours, whenever the seekers want to pass through a doorway into a building, business, train, or other vehicle, they must first roll 2 dice. If they do not roll a 7 or higher, they cannot enter that space (including through other doorways.) Any given doorway can be re-attempted after [S 5, M 10, L 15] minutes.", cost: "Discard two cards" },
+            { name: "Curse Of The Cairn", type: "Curse", description: "You have one attempt to stack as many rocks on top of each other as you can in a freestanding tower. Each rock may only touch one other rock. Once you have added a rock to the tower, it may not be removed. Before adding another rock, the tower must stand for at least five seconds. If at any point, any rock other then the base rock touches the ground, your tower has fallen. Once your tower falls, tell the seekers how many rocks high your tower was when it last stood for five seconds. The seekers must then construct a rock tower of the same number of rocks, under the same parameters, before asking another question. If their tower falls, they must restart. The rocks must be found in nature, and both teams must disperse the rocks after building.", cost: "Build a rock tower" },
+            { name: "Curse Of The Urban Explorer", type: "Curse", description: "For the rest of your run, seekers cannot ask questions when they are on transit or in a transit station.", cost: "Discard 2 cards" },
+            { name: "Curse Of The Impressionable Consumer", type: "Curse", description: "Seekers must enter and gain admission (if applicable) to a location or buy a product that they saw an advertisement for before asking another question. This advertisement must be found out in the world and must be at least 100 feet from the product or location itself.", cost: "The seekers' next question is free" },
+            { name: "Curse Of The Egg Partner", type: "Curse", description: "The seekers must acquire an egg before asking another question. This egg is now treated as an official team member of the seekers. If any team members are abandoned or killed (defined as crack in the egg's case) before the end of your run, you are awarded an extra [S 30, M 45, L 60] minutes. This curse cannot be played during the endgame.", cost: "Discard two cards" },
+            { name: "Curse Of The Distant Cuisine", type: "Curse", description: "Find a restaurant within your zone that explicitly serves food from a specific foreign country. The seekers must visit a restaurant serving food from a country that is an equal or greater distance away before asking another question.", cost: "You must be at the restaurant" },
+            { name: "Curse Of The Right Turn", type: "Curse", description: "For the next [S 20, M 40, L 60] minutes, the seekers can only turn right at any street intersection. If, at any point, they find themselves in a dead end where they cannot continue forward or turn right for another 1,000 feet, they must do a full 180. A right turn is defined as a road at any angle that veers to the right of the seekers.", cost: "Discard a card" },
+            { name: "Curse Of The Labyrinth", type: "Curse", description: "Spend up to [S 10, M 20, L 30] minutes drawing a solvable maze and send a photo of it to the seekers. You cannot use the internet to research maze designs. The seekers musts solve the maze before asking another question.", cost: "Draw a maze" },
+            { name: "Curse Of The Bird Guide", type: "Curse", description: "You have one chance to film a bird for as long as possible, up to [S 5, M 10, L 15] minutes straight. If at any point the bird leaves the frame, your timer is stopped. The seekers must then film a bird for the same amount of time or longer before asking another question.", cost: "Film a bird" },
+            { name: "Curse Of Spotty Memory", type: "Curse", description: "For the rest of your run, one random category of questions will be disabled at all times. After this curse is played, seekers must roll a die to determine the category of questions to be disabled. The category remains disabled until the next question is asked, at which point a die is rolled again to choose a new category. The same category can be disabled multiple times in a row.", cost: "Discard a time bonus" },
+            { name: "Curse Of The Lemon Phylactery", type: "Curse", description: "Before asking another question, the seekers must each find a lemon and affix it to their outermost layer of their clothes or skin. If, at any point, one of these lemons is no longer touching a seeker, you are awarded an extra [S 30, M 45, L 60] minutes. This curse cannot be played during the endgame.", cost: "Discard a powerup" },
+            { name: "Curse Of The Drained Brain", type: "Curse", description: "Choose three questions in different categories. The seekers cannot ask those questions for the rest of the run.", cost: "Discard your hand" },
+            { name: "Curse Of The Ransom Note", type: "Curse", description: "The next question that the seekers ask must be composed of words and letters cut out of any printed material. The question must be coherent and include at least 5 words.", cost: "Spell out \"ransom note\" as a ransom note (without using this card)" },
+            { name: "Curse Of The Gambler's Feet", type: "Curse", description: "For the next [S 20, M 40, L 60] minutes, seekers must roll a die before they take any steps in any direction. They may take that many steps before rolling again.", cost: "Roll a die. If it's an even number, this curse has no effect" },
+            { name: "Curse Of The Mind Meld", type: "Curse", description: "One the count of three, any two seekers say word at the same time. Assuming they're not the same word, they must wait [S 1, M 3, L 5] minutes, and both seekers say a new word that they believe to be the midpoint between the last two words. You may not say any words that have already been said or do anything at all to indicate what word you will say next. Seekers may not ask another question until they both say the same word.", cost: "Discard a card" },
+            { name: "Curse Of The Soothsayer", type: "Curse", description: "For the rest of the round, you may choose to predict the next question after each question is asked. If you are right, you earn triple rewards. If you are wrong, you earn no reward.", cost: "Discard a curse" },
+            { name: "Curse Of The Express Route", type: "Curse", description: "Seekers cannot disembark any transit for the next [S 10, M 20, L 30] minutes, unless they've reached the end of a line.", cost: "Discard at least [S 10, M 20, L 30] minutes worth of time bonuses" },
+            { name: "Curse Of The Archaeologist", type: "Curse", description: "Send the seekers a photo of a building or structure whose age you can verify to within a century. The seekers must find a building or structure (whose age they can also verify) from the same century or earlier before asking another question.", cost: "A standard photo of a building ot structure" },
+            { name: "Curse Of The Void", type: "Curse", description: "For the next three questions that the seekers ask, roll a die. If you roll a 1, 2, 3, or 4, that question is automatically vetoed.", cost: "Discard a veto" },
+            { name: "Curse Of The Shrewd Critic", type: "Curse", description: "Without using the internet, the seekers must find and visit a location (going inside or immediately outside) that has at least a 4.3 star average rating on Google Maps before asking another question. If their guess was wrong, they must wait [S 2, M 5, L 10] minutes before guessing another location. They cannot be on transit when submitting guess.", cost: "Seekers must be currently off-transit within 500 feet of a location that has at least a 4.3 star average rating on Google Maps" },
+            { name: "Curse Of The Pong Champion", type: "Curse", description: "Throw a die into a container (maximum 6 inches in diameter) from any distance you choose. You have three attempts. Seekers must throw a die into a container from the same horizontal distance before asking another question, but must wait [S 1, M 3, L 5] minutes between attempts.", cost: "Successfully land the die in three attempts" },
+            { name: "Curse Of The Impenetrable Fog", type: "Curse", description: "For the next hour, any time the seekers reach a street intersection, the must assign each direction to a number on their die. They may assign a direction to multiple numbers, but each direction must be assigned to at least one. Then, they roll the die to see what direction to go.", cost: "Roll a die. If it's odd, this curse has no effect" },
+            { name: "Curse Of The Gilded Inquiry", type: "Curse", description: "Secretly choose one question. If the seekers ask that question after this curse is played, the question is automatically vetoed and you instantly draw and keep three extra cards.", cost: "The seekers' next question is free" },
+            { name: "Curse Of The 5-Minute King", type: "Curse", description: "Remove all 5-minute bonuses from the deck for the rest of your run. After doing so, you must reshuffle the deck.", cost: "Discard two 5-minute bonus cards" },
+            { name: "Curse Of The Okaihau Express", type: "Curse", description: "Seekers must record and send a full video of themselves singing the full, memorized lyrics of Okaihau Express by Peter Cape - without any outside support - before asking another question. It is up to you, however, to prove if they made a mistake.", cost: "Discard three time bonuses" },
+            { name: "Curse Of The Data Leak", type: "Curse", description: "For the rest of the run, seekers must tell you their route and destination every time they board any form of transit. They may not disembark at any other destination unless forced to.", cost: "Discard [S 4, M 6, L 10] minutes worth of time bonuses" },
+            { name: "Curse Of The Prosperous Home", type: "Curse", description: "Expand the radius of your hiding zone by 50%.", cost: "Discard at least [S 10, M 15, L 20] minutes worth of time bonuses" },
+            { name: "Curse Of The Queue", type: "Curse", description: "Seekers may not ask another question until they've waited in line for at least five minutes. They may wait in different lines, but they cannot wait in the same line more than once. They may not let people cut in front of them in line, and lines must have at least two other people when they enter them.", cost: "You must currently be in line somewhere" },
+            { name: "Curse Of The Plagued World", type: "Curse", description: "For the next [S 1, M 1, L 2] hours, asking a question creates a [S 0.25, M 1, L 5] mile radius where questions cannot be asked until this curse expires.", cost: "Seekers must be at least [S 1, M 3, L 25] miles from you" },
+            { name: "Curse Of The Zipped Lip", type: "Curse", description: "Seekers can only communicate to one another through gestures and closed-mouth non-word sounds for the next [S 10, M 20, L 30] minutes. They can speak to other people, but cannot speak or write any message intended for another seeker.", cost: "Discard a power-up" },
+            { name: "Curse Of The Hide-and-Seek-ception", type: "Curse", description: "All seekers but one must close their eyes. Without discussion, the remaining seeker must go somewhere 1,000 feet away and not within direct eyeshot in any direction. The other seekers must find them, without asking them for any information, before asking another question.", cost: "The seekers must be off-transit, at least 1,000 feet from a transit station" },
+            { name: "Curse Of The Passenger Princess", type: "Curse", description: "The hider selects one seeker to be the passenger princess for the next [S 30, M 45, L 60] minutes. The other seeker is the driver. The passenger princess is not permitted to carry their own belongings, do any research, hold any map, or discuss the game in any way. They may be involved in clearing curses if instructed to do so.", cost: "Discard two cards" },
+            { name: "Curse Of The Rewind", type: "Curse", description: "Seekers must ask their next question from the exact place they asked their last question.", cost: "The last question must have been asked during the end game" },
+            { name: "Curse Of The Tiny Home", type: "Curse", description: "All time bonus cards held at the end of this round are worth 50% extra.", cost: "The radius of your hiding zone is halved. This curse cannot be played during the endgame" },
+            { name: "Curse Of The Curious Explorer", type: "Curse", description: "Seekers must spend at least [S 10, M 20, L 30] minutes in a museum before asking another question. If there is an entry fee, they may wait in the lobby or directly outside.", cost: "Seekers must be off-transit within 0.5 miles of a museum that is open for at least another hour" },
+            { name: "Curse Of The Quill", type: "Curse", description: "Before asking another question, the seekers must spell out the name of the category they intend to use (e.g. PHOTO or MATCHING) by sending photos of handwritten letters they've found out in the world. The letters do not all need to be found in the same place, but they must be created by other people and not printed by any kind of machine. They cannot use a letter twice.", cost: "Seekers must be at least 500 feet from any transit station" },
+            { name: "Curse Of The Clone", type: "Curse", description: "Find a stranger in public and note the following things about them: Do they have long sleeves ot short sleeves? Do they have long pants/skirt or short pants/skirt? Do they have glasses or no glasses? Do they have a hat or no hat? Do they have a bag or no bag? The seekers must find a stranger with the same qualities before asking another question.", cost: "Find a stranger" },
+            { name: "Curse Of The Featherless Flight", type: "Curse", description: "Construct a paper airplane. You may practice throwing it, but you get one official attempt to measure how far it flies horizontally. The seekers must construct, throw, and retrieve an airplane from at least the same distance before asking another question.", cost: "Throw and retrieve a paper airplane." },
+            { name: "Curse Of The Blind Wanderer", type: "Curse", description: "Seekers must ask their next question at least [S 1, M 3, L 10] miles from where they are right now.", cost: "Seekers must be at least [S 2, M 6, L 20] miles from you" },
+            { name: "Curse Of The Anonymous Benefactor", type: "Curse", description: "Seekers must place one dollar/euro/pound (or your country's equivalent) in a public space and confirm that it has been taken by a stranger before asking another question. Seekers cannot speak directly to any strangers about the money.", cost: "Donate money under the same circumstances" },
+            { name: "Curse Of The Prophet", type: "Curse", description: "Rearrange the top ten cards of the deck in any order you choose.", cost: "Discard two cards" },
+            { name: "Curse Of The Open Mind", type: "Curse", description: "You no longer have a hand size limit.", cost: "Discard your hand" },
+            { name: "Curse Of The Seventh Seal", type: "Curse", description: "Your current hiding time, excluding bonuses, is doubled. All remaining time this run is not doubled.", cost: "Discard six curses" },
+            { name: "Curse Of The Sniper", type: "Curse", description: "Send the seekers a photo you've taken of them. Upon receiving this curse, they have 60 seconds to take a photo of you. If they fail, draw and keep five cards. You no longer have a maximum hand size.", cost: "A photo of the seekers" },
+            { name: "Curse Of The Untethered Spirit", type: "Curse", description: "You may move freely within your hiding zone during this round's endgame.", cost: "The tracker is reversed" },
+            { name: "Curse Of The Strider", type: "Curse", description: "Walk or run any total distance over the course of 30 minutes. The seekers must travel that same distance together, on foot before asking another question (e.g. the hider runs 3 miles, the seekers must each walk/run 3 miles.)", cost: "Travel a distance on foot" },
+            { name: "Curse Of The Strongman", type: "Curse", description: "One hider completes as many push-ups as they can over the course of 15-minutes. They may use any standard of push-up (ie. using knees, chest touches ground, chest touches fist, etc.) The seekers must collectively do this many push-ups of the same standard before asking another question.", cost: "Do X push-ups" },
+            { name: "Curse Of The Empty Mind", type: "Curse", description: "Search through the deck and choose any three cards to add to your hand. You must play this curse immediately.", cost: "You cannot draw cards for the rest of the round" },
+            { name: "Curse Of The Pomologist", type: "Curse", description: "Send the seekers a photo of a fruit, along with a link to its corresponding Wikipedia page. They must find the same type of fruit before asking another question.", cost: "A photo of a fruit" },
+            { name: "Curse Of The Divine Blessing", type: "Curse", description: "For the rest of the round, keep all cards drawn. Hand size limit still applies.", cost: "Discard 3 curses" },
+            { name: "Curse Of The Chasm", type: "Curse", description: "For the next three questions that the seekers ask, they must roll a die. If they roll a 1, 2, 3, or 4, that question is automatically randomized.", cost: "Discard a randomize" },
+            { name: "Curse Of The Grass-Toucher", type: "Curse", description: "The next question that the seekers ask must be asked at least 250 feet from any named street (on Google Maps.) As always, no trespassing.", cost: "This curse must be cast at least 250 feet from any named street" },
+            { name: "Curse Of The Freewheeler", type: "Curse", description: "The next three questions that the seekers ask must be asked while on a moving form of transit.", cost: "Seekers must be at least [S 2, M 5, L 50] miles from you" },
+            { name: "Curse Of The Seabird", type: "Curse", description: "Seekers must photograph a bird within 10 feet of a body of water. If after [S 30, M 45, L 60] minutes, no bird has been photographed, this curse is automatically cleared.", cost: "Seekers must be off-transit within 0.5 miles of a natural body of water" },
+            { name: "Curse Of The Long Shot", type: "Curse", description: "Once this curse is cast, the seekers have five minutes to provide one guess as to what transit station you are centered at. If they are correct, you must tell them so. If they are incorrect, they are frozen for [S 18, M 27, L 45] minutes.", cost: "Seekers must be within [S 2, M 5, L 50] miles of you" },
+            { name: "Curse Of The Non-Dominant Hand", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, seekers may not sure their dominant hand for any game-related task. That includes using their phone, completing a challenge, or writing anything on a map.", cost: "Discard a card" },
+            { name: "Curse Of The Planespotter", type: "Curse", description: "The seekers must take a photo of an airplane and send it to the hider before asking another question.", cost: "Seekers must be within 10 miles of a commercial airport" },
+            { name: "Curse Of The Oracle", type: "Curse", description: "Seekers must flip a coin and predict its outcome while its in the air. If they are correct, they do it again. If they are wrong, they must wait [S 1, M 3, L 5] minutes. They may not ask another question until they get it correct three times in a row.", cost: "Discard two cards" },
+            { name: "Curse Of The Post Office", type: "Curse", description: "Seekers must successfully mail a letter with their next question in it to your home address before asking another question.", cost: "Seekers must be within 0.5 miles of a post office." },
+            { name: "Curse Of The Landline", type: "Curse", description: "For the next two hours, seekers may only use their phone for game-related purposes while it is charging via a wall outlet.", cost: "Seekers must be at least [S 2, M 5, L 50] miles from you" },
+            { name: "Curse Of The Shark", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, the seekers are not allowed to stop walking for any reason.", cost: "Discard a power-up" },
+            { name: "Curse Of The Runner", type: "Curse", description: "For the next [S 30, M 45, L 60] minutes, the seekers are only allowed to run or be still. They may not walk.", cost: "Discard [S 4, M 6, L 10] minutes worth of time bonuses" },
+            { name: "Curse Of The Bargin Hunter", type: "Curse", description: "Send the seekers a picture of a discounted price tag (or other written discount) that you found in the real world. They must find an item that is equally (or more) discounted, by percentage, before asking another question.", cost: "A photo of a price tag" },
+            { name: "Curse Of The Trickster", type: "Curse", description: "You may lie - or provide a false photo - for one of the next three questions that the seekers ask. As always, you must send a photo of this curse when cast.", cost: "Discard a curse" },
+            { name: "Time Bonus 3m", type: "Time Bonus", val: 3 },
+            { name: "Time Bonus 6m", type: "Time Bonus", val: 6 },
+            { name: "Time Bonus 9m", type: "Time Bonus", val: 9 },
+            { name: "Time Bonus 12m", type: "Time Bonus", val: 12 },
+            { name: "Time Bonus 18m", type: "Time Bonus", val: 18 },
+            { name: "Time Bonus 36m", type: "Time Bonus", val: 36 },
+            { name: "Time Bonus 5%", type: "Time Bonus", val: "5%" },
+            { name: "Time Bonus 10%", type: "Time Bonus", val: "10%" },
+            { name: "Randomize", type: "Power-up", description: "Play instead of answering a question. A new unasked question from the same category is chosen, at random, which you answer instead." },
+            { name: "Veto", type: "Power-up", description: "Play instead of answering a question. No answer is given, and no reward is earned." },
+            { name: "Duplicate Another Card", type: "Power-up", description: "Play this card as a copy of any other card in your hand. This may be used to duplicate a time bonus at the end of your round." },
+            { name: "Move", type: "Power-up", description: "Discard your hand and send the hiders the location of your transit station. This card grants a [S 10, M 20, L 60] minute period to establish a new hiding zone somewhere else on the game map. The seekers are frozen and your hiding timer is paused until this new hiding period has concluded. This card cannot be played during the endgame." },
+            { name: "Discard 1 Draw 2", type: "Power-up", description: "Discard one other card from your hand. Then, draw and keep two cards from the hider deck." },
+            { name: "Discard 2 Draw 3", type: "Power-up", description: "Discard two other cards from your hand. Then, draw and keep three cards from the hider deck." },
+            { name: "Discard 3 Draw 4", type: "Power-up", description: "Discard three other cards from your hand. Then, draw and keep four cards from the hider deck." },
+            { name: "Draw 1 Expand 1", type: "Power-up", description: "Draw one card from the hider deck. For the rest of the round, you can hold one additional card in your hand." },
+            { name: "Discard Me", type: "Power-up", description: "You can choose to discard this card to pay for the entirety of a curse's casting cost, so long as that card's casting cost involves discarding cards." },
+            { name: "Nothing", type: "Power-up", description: "This card does nothing. It cannot be played or used to pay for another card's cating cost." },
+            { name: "Time Trap", type: "Power-up", description: "Place this card on any transit station and inform the seekers of its location. Every [S 15, M 30, L 60] minutes, increase this card's value by [S 4, M 6, L 10] minutes. If the seekers ever visit or pass through the trapped station, remove this card and add its value to your hiding time." }
+        ];
+
+        const powerIcons = {
+            "Veto": '<rect x="35" y="30" width="30" height="40" rx="4" class="power-symbol-stroke"/><line x1="25" y1="75" x2="75" y2="25" class="power-symbol-stroke"/>',
+            "Randomize": '<path d="M25 35h15l20 30h15 M25 65h15l20-30h15" class="power-symbol-stroke"/><path d="M68 28l7 7l-7 7" class="power-symbol-stroke"/><path d="M68 58l7 7l-7 7" class="power-symbol-stroke"/>',
+            "Duplicate Another Card": '<rect x="30" y="30" width="30" height="30" class="power-symbol-stroke"/><rect x="40" y="40" width="30" height="30" class="power-symbol-stroke"/>',
+            "Move": '<path d="M50 20 L80 80 L50 65 L20 80 Z" class="power-symbol-stroke"/>',
+            "Discard Me": '<path d="M30 30 L70 70 M70 30 L30 70" class="power-symbol-stroke"/><rect x="25" y="25" width="50" height="50" class="power-symbol-stroke"/>',
+            "Time Trap": '<circle cx="50" cy="50" r="30" class="power-symbol-stroke"/><path d="M50 35 V50 H65" class="power-symbol-stroke"/>',
+	    "Nothing": '<class="power-symbol-stroke"/><class="power-symbol-stroke"/>',
+            "default": '<line x1="30" y1="50" x2="70" y2="50" class="power-symbol-stroke"/><line x1="50" y1="30" x2="50" y2="70" class="power-symbol-stroke"/>'
+        };
+
+        const hexClockSvg = `
+	    <svg viewBox="0 0 100 100" class="time-icon-large">
+                <polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" fill="none" stroke="#2d2d2d" stroke-width="5"/>
+                <line x1="50" y1="12" x2="50" y2="18" stroke="#2d2d2d" stroke-width="3"/><line x1="50" y1="88" x2="50" y2="82" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="15" y1="35" x2="20" y2="38" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="35" x2="80" y2="38" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="15" y1="65" x2="20" y2="62" stroke="#2d2d2d" stroke-width="3"/><line x1="85" y1="65" x2="80" y2="62" stroke="#2d2d2d" stroke-width="3"/>
+                <line x1="50" y1="50" x2="50" y2="25" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="50" x2="70" y2="50" stroke="#2d2d2d" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="4" fill="#2d2d2d"/>
+            </svg>
+        `;
+
+        let deck = JSON.parse(localStorage.getItem('jetlag_deck_v36')) || [];
+        let gameState = JSON.parse(localStorage.getItem('jetlag_game_v36')) || null;
+        let currentFilter = 'All';
+        let currentView = 'library';
+
+        // --- NAVIGATION ---
+        function setView(v) { 
+            currentView = v; 
+            document.querySelectorAll('.view-nav-btn').forEach(b => b.classList.remove('nav-active', 'text-white'));
+            document.getElementById(`nav-${v}`).classList.add('nav-active');
+            document.getElementById('library-tabs').style.display = (v === 'library') ? 'flex' : 'none';
+            renderContent(); 
+        }
+
+        function filterType(t) { 
+            currentFilter = t; 
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('tab-active'));
+            document.getElementById(`tab-${t}`).classList.add('tab-active');
+            renderContent(); 
+        }
+
+        function renderContent() {
+            const container = document.getElementById('main-content');
+            const search = document.getElementById('search').value.toLowerCase();
+            container.innerHTML = '';
+            if (currentView === 'library') {
+                cardData.filter(c => (currentFilter === 'All' || c.type === currentFilter) && c.name.toLowerCase().includes(search))
+                    .forEach(card => container.appendChild(createCardVisual(card, 'library')));
+            } else {
+                deck.forEach(item => { for(let i=0; i<item.qty; i++) container.appendChild(createCardVisual(item, 'deck')); });
+            }
+        }
+
+        function getDynamicFs(text) {
+            const len = text.length;
+            if (len > 350) return '8px';
+            if (len > 250) return '9px';
+            if (len > 150) return '10px';
+            return '11.5px';
+        }
+
+        function createCardVisual(card, context, idx = null) {
+            const el = document.createElement('div');
+            el.className = `card-base card-${card.type.toLowerCase().replace(' ', '-')}`;
+            const cnt = document.createElement('div'); cnt.className = 'card-content';
+            
+            if (card.type === 'Curse') {
+                cnt.innerHTML = `<div class="text-[8px] font-black uppercase text-gray-400 mb-1 tracking-widest leading-none">Curse</div><div class="text-[16px] font-black uppercase mb-1 leading-tight">${card.name}</div><div class="leading-relaxed text-gray-600 font-medium flex-grow" style="font-size: ${getDynamicFs(card.description)}">${card.description}</div><div class="mt-auto pt-1 border-t text-[10px] font-bold">Cost: ${card.cost}</div>`;
+            } else if (card.type === 'Power-up') {
+                let title = "";
+                if (card.name.includes("Discard") || card.name.includes("Draw") || card.name.includes("Another")) {
+                    const lines = card.name.split(/(?<= \d) /); 
+                    title = lines.map(p => `<div>${p.toUpperCase()}</div>`).join('');
+                } else { title = card.name.toUpperCase().split(' ').map(p => `<div>${p}</div>`).join(''); }
+                cnt.innerHTML = `<div class="power-icon-container"><svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="50 5, 93 30, 93 70, 50 95, 7 70, 7 30" class="power-hex-stroke"/>${powerIcons[card.name] || powerIcons.default}</svg></div><div class="text-[18px] font-black uppercase leading-none mb-2">${title}</div><div class="text-gray-600 px-1 leading-snug" style="font-size: ${getDynamicFs(card.description)}">${card.description}</div>`;
+            } else {
+                const isPerc = typeof card.val === 'string' && card.val.includes('%');
+                const m = card.val;
+                let footer = !isPerc ? `<div class="time-box"><div class="time-val bg-orange-100 text-orange-700">S<br>${Math.round(m*(2/3))}</div><div class="time-val bg-red-100 text-red-700">M<br>${m}</div><div class="time-val bg-red-600 text-white">L<br>${Math.round(m*(5/3))}</div></div>` : '';
+                cnt.innerHTML = `
+                    <div class="mb-2">${hexClockSvg}</div>
+		    <div class="font-black text-xl leading-none text-gray-900 tracking-tighter uppercase">Time Bonus</div>
+                    <div class="flex items-end justify-center font-black text-gray-900 mb-4">
+                        <span class="text-7xl leading-none tracking-tighter">${m}</span>
+                        ${isPerc ? '' : '<span class="text-[11px] font-black text-gray-400 mb-2 ml-1">MIN</span>'}
+                    </div>
+                    ${footer}
+                `;
+            }
+
+            el.appendChild(cnt);
+            const over = document.createElement('div'); over.className = 'card-overlay';
+            if (context === 'library') over.innerHTML = `<button onclick="addToDeck('${card.name}')" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">Add</button>`;
+            else if (context === 'deck') over.innerHTML = `<button onclick="updateQty('${card.name}', -1)" class="bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">Remove</button>`;
+            else if (context === 'game-hand') over.innerHTML = `<button onclick="useCardAt(${idx}, '${card.name}')" class="bg-emerald-600 text-white px-6 py-2 rounded-full font-black uppercase text-sm shadow-xl">USE CARD</button>`;
+            el.appendChild(over);
+            return el;
+        }
+
+        // DECK HANDLERS
+        function updateDeckUI() {
+            const list = document.getElementById('deck-list'); list.innerHTML = '';
+            let counts = { Curse: 0, "Power-up": 0, "Time Bonus": 0 };
+            deck.forEach(item => {
+                counts[item.type] += item.qty;
+                const div = document.createElement('div'); div.className = 'deck-item';
+                div.innerHTML = `<div class="flex-1 overflow-hidden"><div class="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">${item.type}</div><div class="text-xs font-bold leading-tight truncate mr-2">${item.name}</div></div>
+                    <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1 border">
+                        <button onclick="updateQty('${item.name}', -1)" class="w-6 h-6 flex items-center justify-center font-black text-gray-500 hover:text-red-500 transition">−</button>
+                        <span class="font-bold text-sm w-4 text-center text-gray-900">${item.qty}</span>
+                        <button onclick="updateQty('${item.name}', 1)" class="w-6 h-6 flex items-center justify-center font-black text-gray-500 hover:text-green-500 transition">＋</button>
+                    </div>`;
+                list.appendChild(div);
+            });
+            const total = Object.values(counts).reduce((a,b)=>a+b,0);
+            document.getElementById('deck-count').innerText = total;
+            document.getElementById('stat-curse').innerText = counts.Curse;
+            document.getElementById('stat-power').innerText = counts["Power-up"];
+            document.getElementById('stat-time').innerText = counts["Time Bonus"];
+            const btn = document.getElementById('btn-start-game');
+            if (total >= 100) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.classList.add('cursor-pointer'); }
+            else { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.classList.remove('cursor-pointer'); }
+            localStorage.setItem('jetlag_deck_v36', JSON.stringify(deck));
+        }
+
+        function addToDeck(n) { const e = deck.find(i => i.name === n); if (e) e.qty++; else deck.push({ ...cardData.find(c => c.name === n), qty: 1 }); updateDeckUI(); }
+        function updateQty(n, d) { const i = deck.findIndex(x => x.name === n); if (i === -1) return; deck[i].qty += d; if (deck[i].qty <= 0) deck.splice(i, 1); updateDeckUI(); renderContent(); }
+        function clearDeck() { if(confirm('Clear entire deck?')) { deck = []; localStorage.removeItem('jetlag_deck_v36'); updateDeckUI(); renderContent(); } }
+        function addBaseDeck() {
+            if(!confirm("Replace deck with the Base Deck?")) return;
+            const base = [{n:"Curse of The Zoologist",q:1}, {n:"Curse Of The Unguided Tourist",q:1}, {n:"Curse Of The Endless Tumble",q:1}, {n:"Curse Of The Hidden Hangman",q:1}, {n:"Curse Of The Overflowing Chalice",q:1}, {n:"Curse Of The Mediocre Travel Agent",q:1}, {n:"Curse Of The Luxury Car",q:1}, {n:"Curse Of The U-Turn",q:1}, {n:"Curse Of The Bridge Troll",q:1}, {n:"Curse Of Water Weight",q:1}, {n:"Curse Of The Jammed Door",q:1}, {n:"Curse Of The Cairn",q:1}, {n:"Curse Of The Urban Explorer",q:1}, {n:"Curse Of The Impressionable Consumer",q:1}, {n:"Curse Of The Egg Partner",q:1}, {n:"Curse Of The Distant Cuisine",q:1}, {n:"Curse Of The Right Turn",q:1}, {n:"Curse Of The Labyrinth",q:1}, {n:"Curse Of The Bird Guide",q:1}, {n:"Curse Of Spotty Memory",q:1}, {n:"Curse Of The Lemon Phylactery",q:1}, {n:"Curse Of The Drained Brain",q:1}, {n:"Curse Of The Ransom Note",q:1}, {n:"Curse Of The Gambler's Feet",q:1}, {n:"Time Bonus 3m",q:25}, {n:"Time Bonus 6m",q:15}, {n:"Time Bonus 9m",q:10}, {n:"Time Bonus 12m",q:3}, {n:"Time Bonus 18m",q:2}, {n:"Randomize",q:4}, {n:"Veto",q:4}, {n:"Duplicate Another Card",q:2}, {n:"Move",q:1}, {n:"Discard 1 Draw 2",q:4}, {n:"Discard 2 Draw 3",q:4}, {n:"Draw 1 Expand 1",q:2}];
+            deck = base.map(b => ({ ...cardData.find(c => c.name === b.n), qty: b.q }));
+            updateDeckUI(); renderContent();
+        }
+
+        // --- GAME LOGIC ---
+        function handleStartClick() { if (gameState) document.getElementById('start-modal-overlay').style.display = 'flex'; else launchGame(); }
+        function closeStartModal() { document.getElementById('start-modal-overlay').style.display = 'none'; }
+        function launchGame() {
+            closeStartModal();
+            const f = []; deck.forEach(it => { for(let i=0; i<it.qty; i++) f.push({...it, qty:1}); });
+            for (let i = f.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [f[i], f[j]] = [f[j], f[i]]; }
+            gameState = { dp: f, hand: [], limit: 6, noLim: false };
+            saveGame(); enterGameMode();
+        }
+        function enterGameMode() { closeStartModal(); document.getElementById('builder-mode').classList.add('hidden'); document.getElementById('game-mode').classList.remove('hidden'); renderGameUI(); }
+        function saveGame() { localStorage.setItem('jetlag_game_v36', JSON.stringify(gameState)); }
+        function renderGameUI() {
+            document.getElementById('game-deck-count').innerText = gameState.dp.length;
+            document.getElementById('hand-count').innerText = gameState.hand.length;
+            document.getElementById('hand-limit-display').innerText = gameState.limit;
+            document.getElementById('no-limit-check').checked = gameState.noLim;
+            const grid = document.getElementById('hand-grid'); grid.innerHTML = '';
+            gameState.hand.forEach((c, idx) => grid.appendChild(createCardVisual(c, 'game-hand', idx)));
+        }
+        function useCardAt(idx, name) { if (confirm(`Use ${name}?`)) { gameState.hand.splice(idx, 1); saveGame(); renderGameUI(); } }
+        function adjustLimit(d) { gameState.limit = Math.max(1, gameState.limit + d); renderGameUI(); saveGame(); }
+        function toggleNoLimit() { gameState.noLim = document.getElementById('no-limit-check').checked; saveGame(); }
+
+        function gameDraw() {
+            const dc = parseInt(document.getElementById('draw-count').value), kc = parseInt(document.getElementById('keep-count').value);
+            if (dc > gameState.dp.length) return alert("Deck empty.");
+            const drawn = gameState.dp.splice(0, dc);
+            openSelection(drawn, kc, (kept) => {
+                const rejected = drawn.filter(c => !kept.includes(c));
+                gameState.dp.push(...rejected);
+                gameState.hand.push(...kept);
+                saveGame(); renderGameUI();
+            });
+        }
+
+        function kingAction() {
+            if(!confirm("Remove all 3-min bonuses & shuffle?")) return;
+            gameState.dp = gameState.dp.filter(c => c.val !== 3);
+            for (let i = gameState.dp.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [gameState.dp[i], gameState.dp[j]] = [gameState.dp[j], gameState.dp[i]]; }
+            saveGame(); renderGameUI();
+        }
+
+        function emptyMindAction() {
+            if(!confirm("Pick 3 curses from deck?")) return;
+            const curses = gameState.dp.filter(x => x.type === 'Curse'); if(!curses.length) return alert("None.");
+            openSelection(curses, Math.min(3, curses.length), (sel) => {
+                sel.forEach(card => { const id = gameState.dp.findIndex(x => x.name === card.name); if(id!==-1) gameState.dp.splice(id, 1); gameState.hand.push(card); });
+                saveGame(); renderGameUI();
+            });
+        }
+
+        function openSelection(cards, count, cb) {
+            const modal = document.getElementById('modal-overlay'), grid = document.getElementById('modal-grid'), handGrid = document.getElementById('modal-hand-grid'), stat = document.getElementById('selection-status'), handSec = document.getElementById('hand-management-section');
+            modal.style.display = 'flex'; grid.innerHTML = ''; handGrid.innerHTML = ''; let poolSel = [], handDiscard = [];
+            cards.forEach((c, i) => {
+                const el = createCardVisual(c, 'selection'); el.onclick = () => {
+                    if (poolSel.includes(i)) { poolSel = poolSel.filter(x => x !== i); el.classList.remove('selected-card'); }
+                    else if (poolSel.length < count) { poolSel.push(i); el.classList.add('selected-card'); }
+                    updateStatus();
+                }; grid.appendChild(el);
+            });
+            if (!gameState.noLim) {
+                handSec.classList.remove('hidden');
+                gameState.hand.forEach((c, i) => {
+                    const el = createCardVisual(c, 'hand-discard'); el.onclick = () => {
+                        if (handDiscard.includes(i)) { handDiscard = handDiscard.filter(x => x !== i); el.classList.remove('discard-card'); }
+                        else { handDiscard.push(i); el.classList.add('discard-card'); }
+                        updateStatus();
+                    }; handGrid.appendChild(el);
+                });
+            } else handSec.classList.add('hidden');
+            function updateStatus() {
+                const proj = (gameState.hand.length - handDiscard.length) + poolSel.length;
+                const isOver = !gameState.noLim && proj > gameState.limit;
+                stat.innerText = `Keep: ${poolSel.length}/${count} | New Size: ${proj}/${gameState.noLim ? '∞' : gameState.limit}`;
+                stat.className = isOver ? "text-red-600 font-black" : "text-emerald-600 font-black";
+                document.getElementById('modal-confirm').disabled = isOver;
+            }
+            updateStatus();
+            document.getElementById('modal-confirm').onclick = () => {
+                gameState.hand = gameState.hand.filter((_, i) => !handDiscard.includes(i));
+                closeModal(); cb(poolSel.map(idx => cards[idx]));
+            };
+        }
+
+        function closeModal() { document.getElementById('modal-overlay').style.display='none'; }
+        function openExitModal() { document.getElementById('exit-modal-overlay').style.display = 'flex'; }
+        function closeExitModal() { document.getElementById('exit-modal-overlay').style.display = 'none'; }
+        function handleGameExit(save) { if (!save) { localStorage.removeItem('jetlag_game_v36'); gameState = null; } closeExitModal(); document.getElementById('game-mode').classList.add('hidden'); document.getElementById('builder-mode').classList.remove('hidden'); }
+        function exportDeck() { const text = deck.map(i => `${i.name}${i.qty > 1 ? ` (x${i.qty})` : ''}`).join('\n'); const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Deck Copied!"); }
+        function importDeck() { const input = prompt("Paste deck list:"); if(!input) return; const lines = input.split(/[\n,]/); const nDeck = []; lines.forEach(l => { let n = l.trim(); let q = 1; const m = n.match(/(.*?)\s\(x(\d+)\)/); if(m) { n = m[1].trim(); q = parseInt(m[2]); } const ref = cardData.find(c => c.name.toLowerCase() === n.toLowerCase()); if(ref) nDeck.push({ ...ref, qty: q }); }); if(nDeck.length) { deck = nDeck; updateDeckUI(); renderContent(); } }
+
+        updateDeckUI(); renderContent();
+    </script>
+</body>
+</html>
